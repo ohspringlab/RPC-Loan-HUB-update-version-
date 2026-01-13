@@ -239,6 +239,22 @@ CREATE INDEX IF NOT EXISTS idx_needs_list_loan ON needs_list_items(loan_id);
 CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_email_queue_status ON email_queue(status);
+
+-- Add missing columns to existing tables (if they don't exist)
+DO $$ 
+BEGIN
+  -- Add full_name column if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'users' AND column_name = 'full_name'
+  ) THEN
+    ALTER TABLE users ADD COLUMN full_name VARCHAR(255);
+    -- Update existing rows if any (set a default value)
+    UPDATE users SET full_name = email WHERE full_name IS NULL;
+    -- Now make it NOT NULL if there are no NULL values
+    ALTER TABLE users ALTER COLUMN full_name SET NOT NULL;
+  END IF;
+END $$;
 `;
 
 async function migrate() {
