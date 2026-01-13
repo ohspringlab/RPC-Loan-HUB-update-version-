@@ -1,0 +1,122 @@
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LoanTracker, LoanTrackerHorizontal, statusConfig, type LoanStatus } from "@/components/loan/LoanTracker";
+import { ArrowRight, Building2, DollarSign, MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
+
+interface LoanCardProps {
+  id: string;
+  propertyAddress: string;
+  city: string;
+  state: string;
+  loanAmount: number;
+  propertyType: string;
+  transactionType: string;
+  status: LoanStatus;
+  createdAt: string;
+  compact?: boolean;
+}
+
+export function LoanCard({
+  id,
+  propertyAddress,
+  city,
+  state,
+  loanAmount,
+  propertyType,
+  transactionType,
+  status,
+  createdAt,
+  compact = false,
+}: LoanCardProps) {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const config = statusConfig[status] || { label: status, color: "bg-gray-100 text-gray-700" };
+
+  if (compact) {
+    return (
+      <Card className="hover:shadow-md transition-all">
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Building2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <p className="font-medium truncate">{propertyAddress}</p>
+              </div>
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <MapPin className="w-3 h-3" />
+                {city}, {state}
+              </p>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="font-bold text-lg">{formatCurrency(loanAmount)}</p>
+              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+                {config.label}
+              </span>
+            </div>
+          </div>
+          <div className="mt-4">
+            <LoanTracker currentStatus={status} compact />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="overflow-hidden hover:shadow-lg transition-all">
+      <CardHeader className="bg-navy-800 text-white pb-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-gold-400 text-sm font-medium mb-1">{transactionType}</p>
+            <CardTitle className="text-lg">{propertyAddress}</CardTitle>
+            <p className="text-white/60 text-sm flex items-center gap-1 mt-1">
+              <MapPin className="w-3 h-3" />
+              {city}, {state}
+            </p>
+          </div>
+          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+            {config.label}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="p-4">
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Loan Amount</p>
+            <p className="font-bold text-lg flex items-center gap-1">
+              <DollarSign className="w-4 h-4 text-gold-500" />
+              {formatCurrency(loanAmount)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Property Type</p>
+            <p className="font-medium">{propertyType}</p>
+          </div>
+        </div>
+        
+        <LoanTrackerHorizontal currentStatus={status} />
+        
+        <div className="flex items-center justify-between mt-4 pt-4 border-t">
+          <p className="text-xs text-muted-foreground">
+            Created {new Date(createdAt).toLocaleDateString()}
+          </p>
+          <Link to={`/dashboard/loans/${id}`}>
+            <Button variant="ghost" size="sm" className="gap-1">
+              View Details <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
