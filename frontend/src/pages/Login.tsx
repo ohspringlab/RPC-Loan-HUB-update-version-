@@ -34,7 +34,15 @@ export default function Login() {
       toast.success("Welcome back!");
       navigate("/dashboard");
     } catch (error: any) {
-      toast.error(error.message || "Invalid credentials");
+      console.error('Login error:', error);
+      // Show more specific error message if available
+      if (error.message) {
+        toast.error(error.message);
+      } else if (error.error) {
+        toast.error(error.error);
+      } else {
+        toast.error("Invalid credentials. Please check your email and password.");
+      }
     } finally {
       setIsLoading(false);
     }

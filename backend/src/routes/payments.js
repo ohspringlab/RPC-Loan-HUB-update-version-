@@ -47,43 +47,221 @@ router.post('/appraisal-intent', authenticate, async (req, res, next) => {
     // Appraisal fee (could be dynamic based on property type)
     const appraisalAmount = loan.property_type === 'commercial' ? 75000 : 50000; // in cents (750.00 or 500.00)
 
+    // Try Stripe first, fall back to mock if Stripe is not configured or fails
     if (stripe) {
-      // Create Stripe payment intent
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: appraisalAmount,
-        currency: 'usd',
-        metadata: {
-          loanId,
-          paymentType: 'appraisal',
-          loanNumber: loan.loan_number
+      try {
+        // Create Stripe payment intent
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: appraisalAmount,
+          currency: 'usd',
+          metadata: {
+            loanId,
+            paymentType: 'appraisal',
+            loanNumber: loan.loan_number
+          }
+        });
+
+        // Check which columns exist in payments table
+        let hasUserIdColumn = false;
+        let hasPaymentTypeColumn = false;
+        let hasStripePaymentIntentColumn = false;
+        let hasClientIdColumn = false;
+        let hasTypeColumn = false;
+        try {
+          const columnCheck = await db.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'payments' 
+            AND column_name IN ('user_id', 'payment_type', 'stripe_payment_intent', 'client_id', 'type')
+          `);
+          const columnNames = columnCheck.rows.map(row => row.column_name);
+          hasUserIdColumn = columnNames.includes('user_id');
+          hasPaymentTypeColumn = columnNames.includes('payment_type');
+          hasStripePaymentIntentColumn = columnNames.includes('stripe_payment_intent');
+          hasClientIdColumn = columnNames.includes('client_id');
+          hasTypeColumn = columnNames.includes('type');
+        } catch (error) {
+          console.warn('Error checking for columns:', error);
         }
-      });
 
-      // Record pending payment
-      await db.query(`
-        INSERT INTO payments (loan_id, user_id, payment_type, amount, stripe_payment_intent, status)
-        VALUES ($1, $2, 'appraisal', $3, $4, 'pending')
-      `, [loanId, req.user.id, appraisalAmount / 100, paymentIntent.id]);
+        // Build INSERT statement dynamically based on available columns
+        const columns = ['loan_id'];
+        const values = [loanId];
+        const placeholders = ['$1'];
+        let paramIndex = 1;
 
-      res.json({
-        clientSecret: paymentIntent.client_secret,
-        amount: appraisalAmount / 100
-      });
-    } else {
-      // Mock payment for development
-      const mockIntentId = `pi_mock_${Date.now()}`;
-      
-      await db.query(`
-        INSERT INTO payments (loan_id, user_id, payment_type, amount, stripe_payment_intent, status)
-        VALUES ($1, $2, 'appraisal', $3, $4, 'pending')
-      `, [loanId, req.user.id, appraisalAmount / 100, mockIntentId]);
+        if (hasUserIdColumn) {
+          columns.push('user_id');
+          values.push(req.user.id);
+          placeholders.push(`$${++paramIndex}`);
+        }
+        if (hasClientIdColumn) {
+          // Use user_id as client_id if client_id column exists
+          columns.push('client_id');
+          values.push(req.user.id);
+          placeholders.push(`$${++paramIndex}`);
+        }
+        if (hasPaymentTypeColumn) {
+          columns.push('payment_type');
+          values.push('appraisal');
+          placeholders.push(`$${++paramIndex}`);
+        }
+        if (hasTypeColumn) {
+          // type column (alternative to payment_type)
+          columns.push('type');
+          values.push('appraisal');
+          placeholders.push(`$${++paramIndex}`);
+        }
+        columns.push('amount');
+        values.push(appraisalAmount / 100);
+        placeholders.push(`$${++paramIndex}`);
+        
+        if (hasStripePaymentIntentColumn) {
+          columns.push('stripe_payment_intent');
+          values.push(paymentIntent.id);
+          placeholders.push(`$${++paramIndex}`);
+        }
+        
+        columns.push('status');
+        values.push('pending');
+        placeholders.push(`$${++paramIndex}`);
+        
+        // Check if created_at column exists and include it if it does
+        // (Some schemas may require it explicitly even if there's a default)
+        let hasCreatedAtColumn = false;
+        try {
+          const createdAtCheck = await db.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'payments' AND column_name = 'created_at'
+          `);
+          hasCreatedAtColumn = createdAtCheck.rows.length > 0;
+        } catch (error) {
+          console.warn('Error checking for created_at column:', error);
+        }
+        
+        if (hasCreatedAtColumn) {
+          columns.push('created_at');
+          values.push(new Date());
+          placeholders.push(`$${++paramIndex}`);
+        }
 
-      res.json({
-        clientSecret: `mock_secret_${mockIntentId}`,
-        amount: appraisalAmount / 100,
-        mockMode: true
-      });
+        // Record pending payment
+        await db.query(`
+          INSERT INTO payments (${columns.join(', ')})
+          VALUES (${placeholders.join(', ')})
+        `, values);
+
+        res.json({
+          clientSecret: paymentIntent.client_secret,
+          amount: appraisalAmount / 100
+        });
+        return;
+      } catch (stripeError) {
+        // If Stripe fails (invalid key, etc.), fall back to mock mode
+        console.warn('Stripe payment intent creation failed, using mock mode:', stripeError.message);
+        // Continue to mock mode below
+      }
     }
+    
+    // Mock payment for development (or fallback if Stripe fails)
+    const mockIntentId = `pi_mock_${Date.now()}`;
+    
+    // Check which columns exist in payments table
+    let hasUserIdColumn = false;
+    let hasPaymentTypeColumn = false;
+    let hasStripePaymentIntentColumn = false;
+    let hasClientIdColumn = false;
+    let hasTypeColumn = false;
+    try {
+      const columnCheck = await db.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'payments' 
+        AND column_name IN ('user_id', 'payment_type', 'stripe_payment_intent', 'client_id', 'type')
+      `);
+      const columnNames = columnCheck.rows.map(row => row.column_name);
+      hasUserIdColumn = columnNames.includes('user_id');
+      hasPaymentTypeColumn = columnNames.includes('payment_type');
+      hasStripePaymentIntentColumn = columnNames.includes('stripe_payment_intent');
+      hasClientIdColumn = columnNames.includes('client_id');
+      hasTypeColumn = columnNames.includes('type');
+    } catch (error) {
+      console.warn('Error checking for columns:', error);
+    }
+
+    // Build INSERT statement dynamically based on available columns
+    const columns = ['loan_id'];
+    const values = [loanId];
+    const placeholders = ['$1'];
+    let paramIndex = 1;
+
+    if (hasUserIdColumn) {
+      columns.push('user_id');
+      values.push(req.user.id);
+      placeholders.push(`$${++paramIndex}`);
+    }
+    if (hasClientIdColumn) {
+      // Use user_id as client_id if client_id column exists
+      columns.push('client_id');
+      values.push(req.user.id);
+      placeholders.push(`$${++paramIndex}`);
+    }
+    if (hasPaymentTypeColumn) {
+      columns.push('payment_type');
+      values.push('appraisal');
+      placeholders.push(`$${++paramIndex}`);
+    }
+    if (hasTypeColumn) {
+      // type column (alternative to payment_type)
+      columns.push('type');
+      values.push('appraisal');
+      placeholders.push(`$${++paramIndex}`);
+    }
+    columns.push('amount');
+    values.push(appraisalAmount / 100);
+    placeholders.push(`$${++paramIndex}`);
+    
+    if (hasStripePaymentIntentColumn) {
+      columns.push('stripe_payment_intent');
+      values.push(mockIntentId);
+      placeholders.push(`$${++paramIndex}`);
+    }
+    
+    columns.push('status');
+    values.push('pending');
+    placeholders.push(`$${++paramIndex}`);
+    
+    // Check if created_at column exists and include it if it does
+    // (Some schemas may require it explicitly even if there's a default)
+    let hasCreatedAtColumn = false;
+    try {
+      const createdAtCheck = await db.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'payments' AND column_name = 'created_at'
+      `);
+      hasCreatedAtColumn = createdAtCheck.rows.length > 0;
+    } catch (error) {
+      console.warn('Error checking for created_at column:', error);
+    }
+    
+    if (hasCreatedAtColumn) {
+      columns.push('created_at');
+      values.push(new Date());
+      placeholders.push(`$${++paramIndex}`);
+    }
+
+    await db.query(`
+      INSERT INTO payments (${columns.join(', ')})
+      VALUES (${placeholders.join(', ')})
+    `, values);
+
+    res.json({
+      clientSecret: `mock_secret_${mockIntentId}`,
+      amount: appraisalAmount / 100,
+      mockMode: true
+    });
   } catch (error) {
     next(error);
   }

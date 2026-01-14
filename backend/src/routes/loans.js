@@ -4,7 +4,7 @@ const db = require('../db/config');
 const { authenticate } = require('../middleware/auth');
 const { logAudit } = require('../middleware/audit');
 const { generateTermSheet } = require('../services/pdfService');
-const { generateSoftQuote, calculateDSCR, getInitialNeedsList } = require('../services/quoteService');
+const { generateSoftQuote, calculateDSCR, getInitialNeedsList, generateInitialNeedsListForLoan } = require('../services/quoteService');
 const { sendWelcomeEmail, sendNeedsListEmail, sendSoftQuoteEmail } = require('../services/emailService');
 
 const router = express.Router();
@@ -321,10 +321,11 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       "SELECT id FROM users WHERE role IN ('admin', 'operations') AND is_active = true"
     );
     for (const opsUser of opsUsers.rows) {
+      const notificationId = require('uuid').v4();
       await db.query(`
-        INSERT INTO notifications (user_id, loan_id, type, title, message)
-        VALUES ($1, $2, 'quote_request', $3, $4)
-      `, [opsUser.id, req.params.id, 'New Quote Request', `${loanNumber} requires quote approval`]);
+        INSERT INTO notifications (id, user_id, loan_id, type, title, message)
+        VALUES ($1, $2, $3, 'quote_request', $4, $5)
+      `, [notificationId, opsUser.id, req.params.id, 'New Quote Request', `${loanNumber} requires quote approval`]);
     }
 
     await logAudit(req.user.id, 'LOAN_SUBMITTED', 'loan', req.params.id, req);
@@ -446,7 +447,7 @@ router.post('/:id/soft-quote', authenticate, async (req, res, next) => {
     `, [statusHistoryId3, req.params.id, req.user.id, `Soft quote generated: ${quoteData.rateRange}`]);
 
     // Generate initial needs list
-    await generateInitialNeedsListForLoan(req.params.id, loan);
+    await generateInitialNeedsListForLoan(req.params.id, loan, db);
 
     // Send email notification
     const user = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
@@ -498,7 +499,7 @@ router.post('/:id/sign-term-sheet', authenticate, async (req, res, next) => {
     
     if (needsList.rows.length === 0) {
       // Generate needs list if it doesn't exist
-      await generateInitialNeedsListForLoan(req.params.id, loan.rows[0]);
+      await generateInitialNeedsListForLoan(req.params.id, loan.rows[0], db);
       // Fetch the newly created needs list
       needsList = await db.query('SELECT * FROM needs_list_items WHERE loan_id = $1', [req.params.id]);
     }
@@ -523,6 +524,91 @@ router.post('/:id/sign-term-sheet', authenticate, async (req, res, next) => {
     `, [statusHistoryId5, req.params.id, req.user.id]);
 
     res.json({ message: 'Term sheet signed successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Submit/Complete needs list (Step 6 completion)
+router.post('/:id/complete-needs-list', authenticate, async (req, res, next) => {
+  try {
+    // Verify loan belongs to user
+    const loanCheck = await db.query(
+      'SELECT * FROM loan_requests WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    
+    if (loanCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Loan not found' });
+    }
+
+    const loan = loanCheck.rows[0];
+    
+    // Only allow if status is needs_list_sent
+    if (loan.status !== 'needs_list_sent') {
+      return res.status(400).json({ 
+        error: 'Cannot complete needs list',
+        message: `Loan status must be 'needs_list_sent'. Current status: ${loan.status}`
+      });
+    }
+
+    // Check if all required documents have been uploaded
+    const needsListCheck = await db.query(`
+      SELECT 
+        nli.id,
+        nli.document_type,
+        nli.required,
+        (SELECT COUNT(*) FROM documents d WHERE d.needs_list_item_id = nli.id) as document_count
+      FROM needs_list_items nli
+      WHERE nli.loan_id = $1
+    `, [req.params.id]);
+
+    const requiredItems = needsListCheck.rows.filter(item => item.required);
+    const missingRequired = requiredItems.filter(item => item.document_count === 0);
+
+    if (missingRequired.length > 0) {
+      return res.status(400).json({
+        error: 'Missing required documents',
+        message: `Please upload documents for: ${missingRequired.map(item => item.document_type).join(', ')}`,
+        missingItems: missingRequired.map(item => item.document_type)
+      });
+    }
+
+    // Update loan status to needs_list_complete
+    await db.query(`
+      UPDATE loan_requests SET 
+        status = 'needs_list_complete',
+        current_step = GREATEST(current_step, 7),
+        updated_at = NOW()
+      WHERE id = $1
+    `, [req.params.id]);
+
+    // Add status history
+    const statusHistoryId = require('uuid').v4();
+    await db.query(`
+      INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
+      VALUES ($1, $2, 'needs_list_complete', 7, $3, 'Borrower submitted all required documents')
+    `, [statusHistoryId, req.params.id, req.user.id]);
+
+    // Notify operations team
+    const notificationId = require('uuid').v4();
+    await db.query(`
+      INSERT INTO notifications (id, user_id, loan_id, type, title, message)
+      SELECT $1, id, $2, 'status_update', $3, $4
+      FROM users WHERE role IN ('operations', 'admin')
+    `, [
+      notificationId,
+      req.params.id,
+      'Documents Submitted',
+      `${req.user.full_name} has submitted all required documents for loan ${loan.loan_number}. Ready for review.`
+    ]);
+
+    await logAudit(req.user.id, 'NEEDS_LIST_COMPLETED', 'loan', req.params.id, req);
+
+    res.json({ 
+      message: 'Documents submitted successfully. Your loan application will be reviewed by our team.',
+      status: 'needs_list_complete'
+    });
   } catch (error) {
     next(error);
   }
@@ -591,6 +677,64 @@ router.get('/:id/closing-checklist', authenticate, async (req, res, next) => {
     `, [req.params.id]);
 
     res.json({ checklist: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update closing checklist item for borrower
+router.put('/:id/closing-checklist/:itemId', authenticate, [
+  body('completed').optional().isBoolean(),
+  body('notes').optional()
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    // Verify ownership
+    const check = await db.query('SELECT id FROM loan_requests WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: 'Loan not found' });
+    }
+
+    const { completed, notes } = req.body;
+
+    let updateQuery = `
+      UPDATE closing_checklist_items SET
+        updated_at = NOW()
+    `;
+    const params = [];
+    let paramIndex = 1;
+
+    if (completed !== undefined) {
+      updateQuery += `, completed = $${paramIndex++}`;
+      params.push(completed);
+      
+      if (completed) {
+        updateQuery += `, completed_by = $${paramIndex++}, completed_at = NOW()`;
+        params.push(req.user.id);
+      } else {
+        updateQuery += `, completed_by = NULL, completed_at = NULL`;
+      }
+    }
+
+    if (notes !== undefined) {
+      updateQuery += `, notes = $${paramIndex++}`;
+      params.push(notes);
+    }
+
+    updateQuery += ` WHERE id = $${paramIndex++} AND loan_id = $${paramIndex++}`;
+    params.push(req.params.itemId, req.params.id);
+
+    const result = await db.query(updateQuery, params);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Checklist item not found' });
+    }
+
+    res.json({ message: 'Checklist item updated' });
   } catch (error) {
     next(error);
   }
@@ -688,103 +832,5 @@ async function createDocumentFoldersForLoan(loanId) {
   }
 }
 
-// Helper: Generate initial needs list for loan
-async function generateInitialNeedsListForLoan(loanId, loan) {
-  const items = getInitialNeedsList(loan);
-
-  // Check which optional columns exist in the table
-  // Since error indicates category and loan_type are required, default to true
-  let hasNameColumn = false;
-  let hasCategoryColumn = true; // Default to true since error says it's required
-  let hasLoanTypeColumn = true; // Default to true since error says it's required
-  
-  try {
-    const columns = await db.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'needs_list_items' 
-      AND column_name IN ('name', 'category', 'loan_type')
-    `);
-    const columnNames = columns.rows.map(row => row.column_name);
-    hasNameColumn = columnNames.includes('name');
-    hasCategoryColumn = columnNames.includes('category');
-    hasLoanTypeColumn = columnNames.includes('loan_type');
-    console.log('[generateInitialNeedsListForLoan] Column check:', { hasNameColumn, hasCategoryColumn, hasLoanTypeColumn, columns: columnNames });
-  } catch (error) {
-    console.error('[generateInitialNeedsListForLoan] Error checking columns:', error);
-    // If check fails, assume category and loan_type are required (based on error message)
-    hasCategoryColumn = true;
-    hasLoanTypeColumn = true;
-  }
-
-  // Determine loan_type from loan data
-  const loanType = loan.transaction_type || loan.loan_product || 'general';
-
-  for (const item of items) {
-    // Determine category based on folder/document type
-    let category = 'general';
-    if (item.folder.includes('income') || item.folder.includes('tax') || item.folder.includes('bank')) {
-      category = 'financial';
-    } else if (item.folder.includes('property') || item.folder.includes('lease') || item.folder.includes('rent')) {
-      category = 'property';
-    } else if (item.folder.includes('identification') || item.folder.includes('entity')) {
-      category = 'identity';
-    } else if (item.folder.includes('construction') || item.folder.includes('contract')) {
-      category = 'construction';
-    }
-
-    // Build INSERT statement - always include category and loan_type since errors indicate they're required
-    try {
-      // Build column list and values dynamically based on what exists
-      const columns = ['loan_id'];
-      const values = [loanId];
-      const placeholders = ['$1'];
-      let paramIndex = 1;
-
-      if (hasNameColumn) {
-        columns.push('name');
-        values.push(item.type);
-        placeholders.push(`$${++paramIndex}`);
-      }
-      if (hasCategoryColumn) {
-        columns.push('category');
-        values.push(category);
-        placeholders.push(`$${++paramIndex}`);
-      }
-      if (hasLoanTypeColumn) {
-        columns.push('loan_type');
-        values.push(loanType);
-        placeholders.push(`$${++paramIndex}`);
-      }
-      
-      columns.push('document_type', 'folder_name', 'description', 'status', 'required');
-      values.push(item.type, item.folder, item.description, 'pending', item.required);
-      placeholders.push(`$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`);
-
-      const query = `
-        INSERT INTO needs_list_items (${columns.join(', ')})
-        VALUES (${placeholders.join(', ')})
-        ON CONFLICT DO NOTHING
-      `;
-      
-      console.log('[generateInitialNeedsListForLoan] Insert query:', query);
-      console.log('[generateInitialNeedsListForLoan] Values count:', values.length, 'Placeholders count:', placeholders.length);
-      
-      await db.query(query, values);
-    } catch (insertError) {
-      console.error('[generateInitialNeedsListForLoan] Insert error for item:', item.type, insertError.message);
-      // If insert fails and it's a category error, try with category
-      if (insertError.message.includes('category') && !hasCategoryColumn) {
-        await db.query(`
-          INSERT INTO needs_list_items (loan_id, category, document_type, folder_name, description, status, required)
-          VALUES ($1, $2, $3, $4, $5, 'pending', $6)
-          ON CONFLICT DO NOTHING
-        `, [loanId, category, item.type, item.folder, item.description, item.required]);
-      } else {
-        throw insertError;
-      }
-    }
-  }
-}
 
 module.exports = router;

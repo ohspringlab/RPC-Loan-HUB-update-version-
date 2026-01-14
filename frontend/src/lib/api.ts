@@ -125,6 +125,9 @@ export const loansApi = {
   signTermSheet: (id: string) =>
     apiRequest(`/loans/${id}/sign-term-sheet`, { method: 'POST' }),
 
+  completeNeedsList: (id: string) =>
+    apiRequest(`/loans/${id}/complete-needs-list`, { method: 'POST' }),
+
   submitFullApplication: (id: string, applicationData: any) =>
     apiRequest(`/loans/${id}/full-application`, {
       method: 'POST',
@@ -133,6 +136,12 @@ export const loansApi = {
 
   getClosingChecklist: (id: string) =>
     apiRequest<{ checklist: any[] }>(`/loans/${id}/closing-checklist`),
+
+  updateClosingChecklistItem: (loanId: string, itemId: string, data: { completed?: boolean; notes?: string }) =>
+    apiRequest(`/loans/${loanId}/closing-checklist/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
 };
 
 // Documents API

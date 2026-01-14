@@ -18,13 +18,78 @@ async function createDocumentFoldersForLoan(loanId) {
     { name: 'Rent Roll & Leases', description: 'Rent roll and lease agreements' }
   ];
 
+  // Check which optional columns exist in the table
+  let hasNameColumn = false;
+  let hasCategoryColumn = true; // Default to true since error says it's required
+  let hasLoanTypeColumn = true; // Default to true since error says it's required
+  
+  try {
+    const columns = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'needs_list_items' 
+      AND column_name IN ('name', 'category', 'loan_type')
+    `);
+    const columnNames = columns.rows.map(row => row.column_name);
+    hasNameColumn = columnNames.includes('name');
+    hasCategoryColumn = columnNames.includes('category');
+    hasLoanTypeColumn = columnNames.includes('loan_type');
+  } catch (error) {
+    console.error('[createDocumentFoldersForLoan] Error checking columns:', error);
+    // If check fails, assume category and loan_type are required (based on error message)
+    hasCategoryColumn = true;
+    hasLoanTypeColumn = true;
+  }
+
+  // Get loan to determine loan_type
+  const loanResult = await db.query('SELECT transaction_type, loan_product FROM loan_requests WHERE id = $1', [loanId]);
+  const loanType = loanResult.rows[0]?.transaction_type || loanResult.rows[0]?.loan_product || 'general';
+
   // Create a placeholder needs_list_item for each folder to make it appear in the UI
   for (const folder of folders) {
-    await db.query(`
-      INSERT INTO needs_list_items (loan_id, document_type, folder_name, description, status, required)
-      VALUES ($1, $2, $3, $4, 'pending', false)
+    // Determine category based on folder name
+    let category = 'general';
+    if (folder.name.includes('Financial') || folder.name.includes('Statement')) {
+      category = 'financial';
+    } else if (folder.name.includes('Property') || folder.name.includes('Rent') || folder.name.includes('Leases')) {
+      category = 'property';
+    } else if (folder.name.includes('Entity') || folder.name.includes('Insurance')) {
+      category = 'identity';
+    }
+
+    // Build INSERT statement dynamically based on available columns
+    const columns = ['loan_id'];
+    const values = [loanId];
+    const placeholders = ['$1'];
+    let paramIndex = 1;
+
+    if (hasNameColumn) {
+      columns.push('name');
+      values.push(folder.name);
+      placeholders.push(`$${++paramIndex}`);
+    }
+    if (hasCategoryColumn) {
+      columns.push('category');
+      values.push(category);
+      placeholders.push(`$${++paramIndex}`);
+    }
+    if (hasLoanTypeColumn) {
+      columns.push('loan_type');
+      values.push(loanType);
+      placeholders.push(`$${++paramIndex}`);
+    }
+    
+    columns.push('document_type', 'folder_name', 'description', 'status', 'required');
+    values.push(`Folder: ${folder.name}`, folder.name, folder.description, 'pending', false);
+    placeholders.push(`$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`);
+
+    const query = `
+      INSERT INTO needs_list_items (${columns.join(', ')})
+      VALUES (${placeholders.join(', ')})
       ON CONFLICT DO NOTHING
-    `, [loanId, `Folder: ${folder.name}`, folder.name, folder.description]);
+    `;
+    
+    await db.query(query, values);
   }
 }
 
@@ -32,14 +97,14 @@ const router = express.Router();
 
 // Validation rules
 const registerValidation = [
-  body('email').isEmail().normalizeEmail(),
+  body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email address'),
   body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
-  body('fullName').trim().isLength({ min: 2 }),
-  body('phone').trim().isLength({ min: 10 }),
-  body('propertyAddress').trim().notEmpty(),
-  body('propertyCity').trim().notEmpty(),
-  body('propertyState').trim().notEmpty(),
-  body('propertyZip').trim().isLength({ min: 5 })
+  body('fullName').trim().isLength({ min: 2 }).withMessage('Full name must be at least 2 characters'),
+  body('phone').trim().isLength({ min: 10 }).withMessage('Phone number must be at least 10 characters'),
+  body('propertyAddress').trim().notEmpty().withMessage('Property address is required'),
+  body('propertyCity').trim().notEmpty().withMessage('Property city is required'),
+  body('propertyState').trim().notEmpty().withMessage('Property state is required'),
+  body('propertyZip').trim().isLength({ min: 5 }).withMessage('ZIP code must be at least 5 characters')
 ];
 
 const loginValidation = [
@@ -52,7 +117,12 @@ router.post('/register', registerValidation, async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      console.error('[Register] Validation errors:', errors.array());
+      console.error('[Register] Request body:', req.body);
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        errors: errors.array() 
+      });
     }
 
     const { 
@@ -249,13 +319,19 @@ router.post('/login', loginValidation, async (req, res, next) => {
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[Login] User not found: ${normalizedEmail}`);
       }
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ 
+        error: 'Invalid credentials',
+        message: 'No account found with this email address'
+      });
     }
 
     const user = result.rows[0];
 
     if (!user.is_active) {
-      return res.status(401).json({ error: 'Account is deactivated' });
+      return res.status(401).json({ 
+        error: 'Account is deactivated',
+        message: 'Your account has been deactivated. Please contact support.'
+      });
     }
 
     const validPassword = await bcrypt.compare(password, user.password_hash);
@@ -263,8 +339,13 @@ router.post('/login', loginValidation, async (req, res, next) => {
       // Log for debugging (only in development)
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[Login] Invalid password for: ${user.email}`);
+        console.log(`[Login] Password provided: ${password ? 'Yes' : 'No'}`);
+        console.log(`[Login] Password hash exists: ${user.password_hash ? 'Yes' : 'No'}`);
       }
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ 
+        error: 'Invalid credentials',
+        message: 'Incorrect password. Please try again.'
+      });
     }
 
     await logAudit(user.id, 'USER_LOGIN', 'user', user.id, req);

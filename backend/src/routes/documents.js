@@ -137,12 +137,40 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res, nex
       }
     }
 
-    // Save document record
-    const result = await db.query(`
-      INSERT INTO documents (loan_id, needs_list_item_id, user_id, folder_name, file_name, original_name, file_type, file_size, storage_path)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING *
-    `, [
+    // Check which optional columns exist in documents table
+    let hasNameColumn = false;
+    let hasCategoryColumn = false;
+    try {
+      const columnCheck = await db.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'documents' 
+        AND column_name IN ('name', 'category')
+      `);
+      const columnNames = columnCheck.rows.map(row => row.column_name);
+      hasNameColumn = columnNames.includes('name');
+      hasCategoryColumn = columnNames.includes('category');
+    } catch (error) {
+      console.error('Error checking for optional columns:', error);
+      // Default to true if check fails (based on error message)
+      hasCategoryColumn = true;
+    }
+
+    // Determine category based on folder name (similar to needs_list_items logic)
+    let category = 'general';
+    if (finalFolderName.includes('income') || finalFolderName.includes('tax') || finalFolderName.includes('bank')) {
+      category = 'financial';
+    } else if (finalFolderName.includes('property') || finalFolderName.includes('lease') || finalFolderName.includes('rent')) {
+      category = 'property';
+    } else if (finalFolderName.includes('identification') || finalFolderName.includes('entity')) {
+      category = 'identity';
+    } else if (finalFolderName.includes('construction') || finalFolderName.includes('contract')) {
+      category = 'construction';
+    }
+
+    // Build INSERT statement dynamically based on schema
+    let columns = ['loan_id', 'needs_list_item_id', 'user_id', 'folder_name', 'file_name', 'original_name', 'file_type', 'file_size', 'storage_path'];
+    let values = [
       loanId,
       needsListItemId || null,
       req.user.id,
@@ -152,7 +180,28 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res, nex
       req.file.mimetype,
       req.file.size,
       `/uploads/${req.file.filename}`
-    ]);
+    ];
+    let placeholders = ['$1', '$2', '$3', '$4', '$5', '$6', '$7', '$8', '$9'];
+    let paramIndex = 9;
+
+    // Add optional columns if they exist
+    if (hasNameColumn) {
+      columns.push('name');
+      values.push(req.file.originalname); // Use original filename as name
+      placeholders.push(`$${++paramIndex}`);
+    }
+    if (hasCategoryColumn) {
+      columns.push('category');
+      values.push(category);
+      placeholders.push(`$${++paramIndex}`);
+    }
+
+    // Save document record
+    const result = await db.query(`
+      INSERT INTO documents (${columns.join(', ')})
+      VALUES (${placeholders.join(', ')})
+      RETURNING *
+    `, values);
 
     // Update needs list item status and last upload time
     if (needsListItemId) {
@@ -174,8 +223,8 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res, nex
 
     // Create notification for ops
     await db.query(`
-      INSERT INTO notifications (user_id, loan_id, type, title, message)
-      SELECT id, $1, 'document_upload', $2, $3
+      INSERT INTO notifications (id, user_id, loan_id, type, title, message)
+      SELECT gen_random_uuid(), id, $1, 'document_upload', $2, $3
       FROM users WHERE role IN ('operations', 'admin')
     `, [loanId, 'New Document Uploaded', `${req.user.full_name} uploaded "${req.file.originalname}" to ${finalFolderName} folder for loan ${loan.loan_number}`]);
 

@@ -32,6 +32,15 @@ export default function LoanDetail() {
   const [showAppraisalPayment, setShowAppraisalPayment] = useState(false);
   const [creditConsent, setCreditConsent] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showCommitmentUpload, setShowCommitmentUpload] = useState(false);
+  const [commitmentLetterUrl, setCommitmentLetterUrl] = useState("");
+  const [conditionalItems, setConditionalItems] = useState("");
+  const [showAddChecklistItem, setShowAddChecklistItem] = useState(false);
+  const [newChecklistItem, setNewChecklistItem] = useState({ itemName: "", description: "", category: "general", required: true });
+  const [showScheduleClosing, setShowScheduleClosing] = useState(false);
+  const [closingDate, setClosingDate] = useState("");
+  const [showFundLoan, setShowFundLoan] = useState(false);
+  const [fundedAmount, setFundedAmount] = useState("");
 
   // Determine if this is an operations/admin view
   const isOpsView = location.pathname.startsWith('/ops') || (user?.role === 'operations' || user?.role === 'admin');
@@ -218,6 +227,34 @@ export default function LoanDetail() {
             </Card>
 
             {/* Action Cards */}
+            {loan.status === "new_request" && !isOpsView && (
+              <Card className="border-blue-500/50 bg-blue-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-blue-600">
+                    <FileText className="w-5 h-5" />
+                    Complete Your Loan Request
+                  </CardTitle>
+                  <CardDescription>
+                    Your loan request has been created, but you need to complete the loan details form to submit it for approval.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    variant="default"
+                    className="bg-blue-600 hover:bg-blue-700 text-white w-full"
+                    onClick={() => navigate(`/loan-request/${loanId}`)}
+                    disabled={isProcessing}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Complete Loan Request Form
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-3 text-center">
+                    You'll need to provide property details, loan amount, transaction type, and other required information.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             {loan.status === "quote_requested" && (
               <Card className="border-yellow-500/50 bg-yellow-500/5">
                 <CardHeader>
@@ -259,7 +296,44 @@ export default function LoanDetail() {
                 )}
               </Card>
             )}
-            
+
+            {/* Commitment Letter Upload for Operations - when conditionally approved */}
+            {loan.status === "conditionally_approved" && isOpsView && (
+              <Card className="border-orange-500/50 bg-orange-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-orange-600">
+                    <FileCheck className="w-5 h-5" />
+                    Upload Commitment Letter
+                  </CardTitle>
+                  <CardDescription>
+                    This loan has been conditionally approved. Upload the commitment letter to proceed to the next stage.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loan.commitment_letter_url ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">Commitment letter has been uploaded.</p>
+                      <a href={loan.commitment_letter_url} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">
+                          <Download className="w-4 h-4 mr-2" /> View Commitment Letter
+                        </Button>
+                      </a>
+                    </div>
+                  ) : (
+                    <Button 
+                      variant="default"
+                      className="bg-orange-600 hover:bg-orange-700 text-white w-full"
+                      onClick={() => setShowCommitmentUpload(true)}
+                      disabled={isProcessing}
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload Commitment Letter
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Show action card for soft_quote_issued status - allow signing term sheet */}
             {/* More flexible condition: check status OR if quote is generated but not signed */}
             {((loan.status === "soft_quote_issued" || 
@@ -482,45 +556,199 @@ export default function LoanDetail() {
                   {needsList.length === 0 ? (
                     <p className="text-muted-foreground">No documents requested yet</p>
                   ) : (
-                    <div className="space-y-3">
-                      {needsList.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <p className="font-medium">{item.document_type}</p>
-                            <p className="text-sm text-muted-foreground">{item.description}</p>
-                            {item.document_count > 0 && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {item.document_count} file(s) uploaded
+                    <div className="space-y-4">
+                      <div className="space-y-3">
+                        {needsList.map((item) => (
+                          <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">{item.document_type}</p>
+                                {item.required && (
+                                  <Badge variant="outline" className="text-xs">Required</Badge>
+                                )}
+                                {item.document_count > 0 && (
+                                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">{item.description}</p>
+                              {item.document_count > 0 && (
+                                <p className="text-xs text-green-600 mt-1 font-medium">
+                                  {item.document_count} file(s) uploaded
+                                </p>
+                              )}
+                            </div>
+                            <label>
+                              <input
+                                type="file"
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file && loanId) {
+                                    try {
+                                      await documentsApi.upload(loanId, file, item.id);
+                                      toast.success("Document uploaded");
+                                      await loadLoanData();
+                                    } catch (error: any) {
+                                      toast.error(error.message || "Upload failed");
+                                    }
+                                  }
+                                }}
+                              />
+                              <Button variant="outline" size="sm" asChild>
+                                <span>
+                                  <Upload className="w-4 h-4 mr-2" /> Upload
+                                </span>
+                              </Button>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Submit Documents Button */}
+                      {!isOpsView && (() => {
+                        const requiredItems = needsList.filter(item => item.required);
+                        const allRequiredUploaded = requiredItems.length > 0 && 
+                          requiredItems.every(item => item.document_count > 0);
+                        const uploadedCount = needsList.filter(item => item.document_count > 0).length;
+                        const totalCount = needsList.length;
+                        
+                        return (
+                          <div className="pt-4 border-t">
+                            <div className="flex items-center justify-between mb-3">
+                              <div>
+                                <p className="text-sm font-medium">
+                                  Progress: {uploadedCount} of {totalCount} document types uploaded
+                                </p>
+                                {allRequiredUploaded && (
+                                  <p className="text-sm text-green-600 mt-1">
+                                    ✓ All required documents uploaded. Ready to submit!
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Button
+                              variant="gold"
+                              className="w-full"
+                              disabled={!allRequiredUploaded || isProcessing}
+                              onClick={async () => {
+                                if (!allRequiredUploaded) {
+                                  toast.error("Please upload all required documents before submitting");
+                                  return;
+                                }
+                                
+                                setIsProcessing(true);
+                                try {
+                                  await loansApi.completeNeedsList(loanId!);
+                                  toast.success("Documents submitted successfully! Your loan application will be reviewed by our team.");
+                                  await loadLoanData();
+                                } catch (error: any) {
+                                  if (error.missingItems && Array.isArray(error.missingItems)) {
+                                    toast.error(`Please upload: ${error.missingItems.join(', ')}`);
+                                  } else {
+                                    toast.error(error.message || "Failed to submit documents");
+                                  }
+                                } finally {
+                                  setIsProcessing(false);
+                                }
+                              }}
+                            >
+                              {isProcessing ? (
+                                "Submitting..."
+                              ) : (
+                                <>
+                                  <FileCheck className="w-4 h-4 mr-2" />
+                                  Submit Documents for Review
+                                </>
+                              )}
+                            </Button>
+                            {!allRequiredUploaded && (
+                              <p className="text-xs text-muted-foreground mt-2 text-center">
+                                Upload all required documents (marked with "Required" badge) to proceed
                               </p>
                             )}
                           </div>
-                          <label>
-                            <input
-                              type="file"
-                              className="hidden"
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (file && loanId) {
-                                  try {
-                                    await documentsApi.upload(loanId, file, item.id);
-                                    toast.success("Document uploaded");
-                                    await loadLoanData();
-                                  } catch (error: any) {
-                                    toast.error(error.message || "Upload failed");
-                                  }
-                                }
-                              }}
-                            />
-                            <Button variant="outline" size="sm" asChild>
-                              <span>
-                                <Upload className="w-4 h-4 mr-2" /> Upload
-                              </span>
-                            </Button>
-                          </label>
-                        </div>
-                      ))}
+                        );
+                      })()}
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Underwriting Status - Borrower Guidance */}
+            {loan.status === "submitted_to_underwriting" && !isOpsView && (
+              <Card className="border-yellow-500/50 bg-yellow-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-yellow-700">
+                    <Shield className="w-5 h-5" />
+                    Underwriting Review in Progress
+                  </CardTitle>
+                  <CardDescription>
+                    Your loan application is currently being reviewed by our underwriting team.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Your loan file is now in underwriting review. Our team is carefully reviewing all your documents and application. 
+                      You don't need to take any action at this time.
+                    </p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <p className="text-sm font-medium text-blue-900 mb-2">What happens next?</p>
+                      <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                        <li>Our underwriting team will review your complete application</li>
+                        <li>If approved, an appraisal will be ordered (you'll need to pay the appraisal fee)</li>
+                        <li>You'll be notified via email when your loan moves to the next stage</li>
+                      </ul>
+                    </div>
+                    <p className="text-xs text-muted-foreground italic">
+                      Typical review time: 3-5 business days. We'll notify you as soon as there's an update.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Underwriting Status - Operations Guidance */}
+            {loan.status === "submitted_to_underwriting" && isOpsView && (
+              <Card className="border-purple-500/50 bg-purple-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-purple-600">
+                    <Shield className="w-5 h-5" />
+                    Underwriting Review
+                  </CardTitle>
+                  <CardDescription>
+                    Loan is in underwriting review. Update status when ready to proceed.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      This loan is currently in underwriting review. Once the review is complete, update the status to proceed:
+                    </p>
+                    <div className="space-y-2">
+                      <Button
+                        variant="default"
+                        onClick={async () => {
+                          try {
+                            await opsApi.updateStatus(loanId!, "appraisal_ordered", "Underwriting review complete, ordering appraisal");
+                            toast.success("Status updated to Appraisal Ordered");
+                            await loadLoanData();
+                          } catch (error: any) {
+                            toast.error(error.message || "Failed to update status");
+                          }
+                        }}
+                        disabled={isProcessing}
+                        className="w-full"
+                      >
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        {isProcessing ? "Updating..." : "Order Appraisal (Next Step)"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground text-center">
+                        This will move the loan to "Appraisal Ordered" status, and the borrower will be prompted to pay the appraisal fee.
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -559,8 +787,156 @@ export default function LoanDetail() {
               />
             )}
 
-            {/* Closing Checklist */}
-            {(loan.status === "conditional_commitment_issued" || loan.status === "closing_checklist_issued" || loan.status === "clear_to_close") && closingChecklist.length > 0 && (
+            {/* Next Step Guidance - After Full Application Completed */}
+            {loan.status === "needs_list_complete" && loan.full_application_completed && !isOpsView && (
+              <Card className="border-blue-500/50 bg-blue-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-blue-600">
+                    <Shield className="w-5 h-5" />
+                    Application Submitted
+                  </CardTitle>
+                  <CardDescription>
+                    Your full loan application has been submitted and is ready for review.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Your loan application is now complete. The operations team will review your documents and application, then submit it to underwriting. You will be notified when your loan moves to the next stage.
+                    </p>
+                    {loan.full_application_pdf_url && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}${loan.full_application_pdf_url}`, '_blank');
+                        }}
+                        className="w-full"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download Application PDF
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Operations: Next Step - Submit to Underwriting */}
+            {loan.status === "needs_list_complete" && loan.full_application_completed && isOpsView && (
+              <Card className="border-purple-500/50 bg-purple-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-purple-600">
+                    <Shield className="w-5 h-5" />
+                    Ready for Underwriting
+                  </CardTitle>
+                  <CardDescription>
+                    All documents and the full application have been submitted. Update status to proceed.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      The borrower has completed all required documents and the full application. Review the documents, then update the loan status to <strong>"Submitted to Underwriting"</strong> to proceed.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="default"
+                        onClick={async () => {
+                          try {
+                            await opsApi.updateStatus(loanId!, "submitted_to_underwriting", "Documents and application reviewed, submitting to underwriting");
+                            toast.success("Status updated to Submitted to Underwriting");
+                            await loadLoanData();
+                          } catch (error: any) {
+                            toast.error(error.message || "Failed to update status");
+                          }
+                        }}
+                        disabled={isProcessing}
+                      >
+                        <Shield className="w-4 h-4 mr-2" />
+                        {isProcessing ? "Updating..." : "Submit to Underwriting"}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Closing Checklist - Borrower View */}
+            {!isOpsView && loan.status === "conditional_commitment_issued" && closingChecklist.length === 0 && (
+              <Card className="border-blue-500/50 bg-blue-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-blue-600">
+                    <ClipboardCheck className="w-5 h-5" />
+                    Awaiting Closing Checklist
+                  </CardTitle>
+                  <CardDescription>
+                    Your commitment letter has been issued. The operations team will create your closing checklist shortly. You will be notified when it's ready.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            )}
+
+            {/* Closing Checklist - Operations: Create Checklist */}
+            {isOpsView && loan.status === "conditional_commitment_issued" && (
+              <Card className="border-purple-500/50 bg-purple-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-purple-600">
+                    <ClipboardCheck className="w-5 h-5" />
+                    Create Closing Checklist
+                  </CardTitle>
+                  <CardDescription>
+                    Create closing checklist items for this loan. The status will automatically update to "Closing Checklist Issued" when you add the first item.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {closingChecklist.length > 0 ? (
+                    <div className="space-y-3 mb-4">
+                      {closingChecklist.map((item) => (
+                        <div 
+                          key={item.id} 
+                          className={`flex items-start gap-3 p-3 border rounded-lg ${
+                            item.completed ? 'bg-muted/50' : ''
+                          }`}
+                        >
+                          <Checkbox
+                            checked={item.completed}
+                            disabled
+                            className="mt-1"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className={`font-medium ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                {item.item_name}
+                              </p>
+                              {item.required && (
+                                <Badge variant="outline" className="text-xs">Required</Badge>
+                              )}
+                            </div>
+                            {item.description && (
+                              <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mb-4">No checklist items yet. Add the first item to create the checklist.</p>
+                  )}
+                  <Button 
+                    variant="default"
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                    onClick={() => setShowAddChecklistItem(true)}
+                    disabled={isProcessing}
+                  >
+                    <ClipboardCheck className="w-4 h-4 mr-2" />
+                    {closingChecklist.length > 0 ? "Add Checklist Item" : "Create Closing Checklist"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Closing Checklist - Display */}
+            {(loan.status === "closing_checklist_issued" || loan.status === "clear_to_close") && closingChecklist.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -568,7 +944,7 @@ export default function LoanDetail() {
                     Closing Checklist
                   </CardTitle>
                   <CardDescription>
-                    Complete these items before closing
+                    {isOpsView ? "Manage closing checklist items" : "Complete these items before closing"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -582,7 +958,19 @@ export default function LoanDetail() {
                       >
                         <Checkbox
                           checked={item.completed}
-                          disabled
+                          onCheckedChange={async (checked) => {
+                            try {
+                              if (isOpsView) {
+                                await opsApi.updateClosingChecklistItem(loanId!, item.id, { completed: checked as boolean });
+                              } else {
+                                await loansApi.updateClosingChecklistItem(loanId!, item.id, { completed: checked as boolean });
+                              }
+                              toast.success("Checklist item updated");
+                              await loadLoanData();
+                            } catch (error: any) {
+                              toast.error(error.message || "Failed to update item");
+                            }
+                          }}
                           className="mt-1"
                         />
                         <div className="flex-1">
@@ -606,11 +994,201 @@ export default function LoanDetail() {
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="text-sm text-muted-foreground">
-                      {closingChecklist.filter((item: any) => item.completed).length} of {closingChecklist.length} items completed
-                    </p>
+                  <div className="mt-4 pt-4 border-t space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        {closingChecklist.filter((item: any) => item.completed).length} of {closingChecklist.length} items completed
+                      </p>
+                      {isOpsView && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setShowAddChecklistItem(true)}
+                        >
+                          <ClipboardCheck className="w-4 h-4 mr-2" />
+                          Add Item
+                        </Button>
+                      )}
+                    </div>
+                    {!isOpsView && closingChecklist.filter((item: any) => item.completed).length === closingChecklist.length && closingChecklist.length > 0 && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-green-800 font-medium">
+                          ✓ All checklist items completed! The operations team will review and update your loan status to "Clear to Close" shortly.
+                        </p>
+                      </div>
+                    )}
+                    {isOpsView && closingChecklist.filter((item: any) => item.completed).length === closingChecklist.length && closingChecklist.length > 0 && loan.status === "closing_checklist_issued" && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800 font-medium mb-2">
+                          All checklist items are completed. Update the loan status to "Clear to Close" to proceed.
+                        </p>
+                        <Button 
+                          variant="default"
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700"
+                          onClick={async () => {
+                            if (!loanId) return;
+                            setIsProcessing(true);
+                            try {
+                              await opsApi.updateStatus(loanId, "clear_to_close", "All closing checklist items completed");
+                              toast.success("Status updated to Clear to Close");
+                              await loadLoanData();
+                            } catch (error: any) {
+                              toast.error(error.message || "Failed to update status");
+                            } finally {
+                              setIsProcessing(false);
+                            }
+                          }}
+                          disabled={isProcessing}
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Mark as Clear to Close
+                        </Button>
+                      </div>
+                    )}
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Schedule Closing - Operations Only */}
+            {loan.status === "clear_to_close" && isOpsView && (
+              <Card className="border-green-500/50 bg-green-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-green-600">
+                    <Calendar className="w-5 h-5" />
+                    Schedule Closing
+                  </CardTitle>
+                  <CardDescription>
+                    This loan is clear to close. Schedule the closing date to proceed to the next stage.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loan.closing_scheduled_date ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Closing scheduled for: <strong>{new Date(loan.closing_scheduled_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+                      </p>
+                      <Button 
+                        variant="outline"
+                        onClick={() => setShowScheduleClosing(true)}
+                        disabled={isProcessing}
+                      >
+                        <Calendar className="w-4 h-4 mr-2" />
+                        Change Closing Date
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button 
+                      variant="default"
+                      className="bg-green-600 hover:bg-green-700 text-white w-full"
+                      onClick={() => setShowScheduleClosing(true)}
+                      disabled={isProcessing}
+                    >
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Schedule Closing Date
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Clear to Close - Borrower View */}
+            {loan.status === "clear_to_close" && !isOpsView && (
+              <Card className="border-green-500/50 bg-green-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-green-600">
+                    <CheckCircle2 className="w-5 h-5" />
+                    Clear to Close
+                  </CardTitle>
+                  <CardDescription>
+                    Your loan has been cleared to close! The operations team will schedule your closing date shortly. You will be notified once the closing date is confirmed.
+                  </CardDescription>
+                </CardHeader>
+                {loan.closing_scheduled_date && (
+                  <CardContent>
+                    <div className="p-4 bg-white rounded-lg border-2 border-green-200">
+                      <p className="text-sm text-muted-foreground mb-1">Scheduled Closing Date</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {new Date(loan.closing_scheduled_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            )}
+
+            {/* Closing Scheduled - Borrower View */}
+            {loan.status === "closing_scheduled" && !isOpsView && (
+              <Card className="border-blue-500/50 bg-blue-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-blue-600">
+                    <Calendar className="w-5 h-5" />
+                    Closing Scheduled
+                  </CardTitle>
+                  <CardDescription>
+                    Your closing has been scheduled! Please see the details below.
+                  </CardDescription>
+                </CardHeader>
+                {loan.closing_scheduled_date && (
+                  <CardContent>
+                    <div className="p-4 bg-white rounded-lg border-2 border-blue-200">
+                      <p className="text-sm text-muted-foreground mb-1">Scheduled Closing Date</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {new Date(loan.closing_scheduled_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        The operations team will mark your loan as funded after the closing is complete.
+                      </p>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            )}
+
+            {/* Mark as Funded - Operations Only */}
+            {loan.status === "closing_scheduled" && isOpsView && (
+              <Card className="border-emerald-500/50 bg-emerald-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-emerald-600">
+                    <DollarSign className="w-5 h-5" />
+                    Mark Loan as Funded
+                  </CardTitle>
+                  <CardDescription>
+                    This loan's closing has been scheduled. After the closing is complete, mark it as funded to finalize the loan.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {loan.closing_scheduled_date && (
+                    <div className="p-3 bg-white rounded-lg border">
+                      <p className="text-sm text-muted-foreground">Scheduled Closing Date</p>
+                      <p className="text-lg font-semibold">
+                        {new Date(loan.closing_scheduled_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                    </div>
+                  )}
+                  {loan.funded_date ? (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm text-green-800 font-medium">
+                        ✓ Loan has been marked as funded on {new Date(loan.funded_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                      {loan.funded_amount && (
+                        <p className="text-sm text-green-700 mt-1">
+                          Funded Amount: {formatCurrency(loan.funded_amount)}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <Button 
+                      variant="default"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white w-full"
+                      onClick={() => setShowFundLoan(true)}
+                      disabled={isProcessing}
+                    >
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Mark as Funded
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -723,6 +1301,302 @@ export default function LoanDetail() {
             </Button>
             <Button variant="gold" onClick={handleAppraisalPayment} disabled={isProcessing}>
               {isProcessing ? "Processing..." : "Pay Now"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Commitment Letter Upload Dialog */}
+      <Dialog open={showCommitmentUpload} onOpenChange={setShowCommitmentUpload}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Commitment Letter</DialogTitle>
+            <DialogDescription>
+              Upload the commitment letter for this conditionally approved loan
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="commitmentUrl">Commitment Letter URL</Label>
+              <input
+                id="commitmentUrl"
+                type="text"
+                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="https://example.com/commitment-letter.pdf"
+                value={commitmentLetterUrl}
+                onChange={(e) => setCommitmentLetterUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter the URL where the commitment letter is hosted, or upload to a file hosting service first.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="conditionalItems">Conditional Items (Optional)</Label>
+              <textarea
+                id="conditionalItems"
+                className="mt-1 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="List any conditional items that need to be addressed..."
+                value={conditionalItems}
+                onChange={(e) => setConditionalItems(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowCommitmentUpload(false);
+              setCommitmentLetterUrl("");
+              setConditionalItems("");
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={async () => {
+                if (!commitmentLetterUrl.trim()) {
+                  toast.error("Please enter a commitment letter URL");
+                  return;
+                }
+                setIsProcessing(true);
+                try {
+                  await opsApi.uploadCommitment(loanId!, commitmentLetterUrl, conditionalItems || undefined);
+                  toast.success("Commitment letter uploaded successfully");
+                  setShowCommitmentUpload(false);
+                  setCommitmentLetterUrl("");
+                  setConditionalItems("");
+                  await loadLoanData();
+                } catch (error: any) {
+                  toast.error(error.message || "Failed to upload commitment letter");
+                } finally {
+                  setIsProcessing(false);
+                }
+              }}
+              disabled={isProcessing || !commitmentLetterUrl.trim()}
+            >
+              {isProcessing ? "Uploading..." : "Upload & Update Status"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Closing Checklist Item Dialog */}
+      <Dialog open={showAddChecklistItem} onOpenChange={setShowAddChecklistItem}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Closing Checklist Item</DialogTitle>
+            <DialogDescription>
+              Add a new item to the closing checklist
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="itemName">Item Name *</Label>
+              <input
+                id="itemName"
+                type="text"
+                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="e.g., Final Property Inspection"
+                value={newChecklistItem.itemName}
+                onChange={(e) => setNewChecklistItem({ ...newChecklistItem, itemName: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="checklistDescription">Description (Optional)</Label>
+              <textarea
+                id="checklistDescription"
+                className="mt-1 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Additional details about this checklist item..."
+                value={newChecklistItem.description}
+                onChange={(e) => setNewChecklistItem({ ...newChecklistItem, description: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="checklistCategory">Category</Label>
+              <select
+                id="checklistCategory"
+                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={newChecklistItem.category}
+                onChange={(e) => setNewChecklistItem({ ...newChecklistItem, category: e.target.value })}
+              >
+                <option value="general">General</option>
+                <option value="documents">Documents</option>
+                <option value="insurance">Insurance</option>
+                <option value="title">Title</option>
+                <option value="inspection">Inspection</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="required"
+                checked={newChecklistItem.required}
+                onCheckedChange={(checked) => setNewChecklistItem({ ...newChecklistItem, required: checked as boolean })}
+              />
+              <Label htmlFor="required" className="cursor-pointer">Required item</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowAddChecklistItem(false);
+              setNewChecklistItem({ itemName: "", description: "", category: "general", required: true });
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={async () => {
+                if (!newChecklistItem.itemName.trim()) {
+                  toast.error("Please enter an item name");
+                  return;
+                }
+                setIsProcessing(true);
+                try {
+                  await opsApi.addClosingChecklistItem(loanId!, {
+                    itemName: newChecklistItem.itemName,
+                    description: newChecklistItem.description || undefined,
+                    category: newChecklistItem.category,
+                    required: newChecklistItem.required
+                  });
+                  toast.success("Checklist item added successfully");
+                  setShowAddChecklistItem(false);
+                  setNewChecklistItem({ itemName: "", description: "", category: "general", required: true });
+                  await loadLoanData();
+                } catch (error: any) {
+                  toast.error(error.message || "Failed to add checklist item");
+                } finally {
+                  setIsProcessing(false);
+                }
+              }}
+              disabled={isProcessing || !newChecklistItem.itemName.trim()}
+            >
+              {isProcessing ? "Adding..." : "Add Item"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Closing Dialog */}
+      <Dialog open={showScheduleClosing} onOpenChange={setShowScheduleClosing}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Schedule Closing</DialogTitle>
+            <DialogDescription>
+              Select the closing date for this loan
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="closingDate">Closing Date *</Label>
+              <input
+                id="closingDate"
+                type="date"
+                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={closingDate}
+                onChange={(e) => setClosingDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Select a future date for the loan closing
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowScheduleClosing(false);
+              setClosingDate("");
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={async () => {
+                if (!closingDate) {
+                  toast.error("Please select a closing date");
+                  return;
+                }
+                setIsProcessing(true);
+                try {
+                  await opsApi.scheduleClosing(loanId!, closingDate);
+                  toast.success("Closing scheduled successfully");
+                  setShowScheduleClosing(false);
+                  setClosingDate("");
+                  await loadLoanData();
+                } catch (error: any) {
+                  toast.error(error.message || "Failed to schedule closing");
+                } finally {
+                  setIsProcessing(false);
+                }
+              }}
+              disabled={isProcessing || !closingDate}
+            >
+              {isProcessing ? "Scheduling..." : "Schedule Closing"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fund Loan Dialog */}
+      <Dialog open={showFundLoan} onOpenChange={setShowFundLoan}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark Loan as Funded</DialogTitle>
+            <DialogDescription>
+              Enter the funded amount to mark this loan as funded
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="fundedAmount">Funded Amount *</Label>
+              <input
+                id="fundedAmount"
+                type="number"
+                step="0.01"
+                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="375000"
+                value={fundedAmount}
+                onChange={(e) => setFundedAmount(e.target.value)}
+                min="0"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter the actual amount that was funded at closing
+              </p>
+            </div>
+            {loan.loan_amount && (
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">Original Loan Amount</p>
+                <p className="text-lg font-semibold">{formatCurrency(loan.loan_amount)}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowFundLoan(false);
+              setFundedAmount("");
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={async () => {
+                if (!fundedAmount || parseFloat(fundedAmount) <= 0) {
+                  toast.error("Please enter a valid funded amount");
+                  return;
+                }
+                setIsProcessing(true);
+                try {
+                  await opsApi.fundLoan(loanId!, parseFloat(fundedAmount));
+                  toast.success("Loan marked as funded successfully");
+                  setShowFundLoan(false);
+                  setFundedAmount("");
+                  await loadLoanData();
+                } catch (error: any) {
+                  toast.error(error.message || "Failed to mark loan as funded");
+                } finally {
+                  setIsProcessing(false);
+                }
+              }}
+              disabled={isProcessing || !fundedAmount || parseFloat(fundedAmount) <= 0}
+            >
+              {isProcessing ? "Processing..." : "Mark as Funded"}
             </Button>
           </DialogFooter>
         </DialogContent>

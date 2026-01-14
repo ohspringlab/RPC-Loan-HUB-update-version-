@@ -211,4 +211,46 @@ function formatFieldName(str) {
   return str.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
 }
 
+function getStateDisclosures(state) {
+  // State-specific disclosure templates
+  const stateDisclosures = {
+    'CA': [
+      {
+        title: 'California Disclosure',
+        content: 'This loan is subject to California state lending regulations. Borrower has the right to receive a copy of all loan documents prior to signing. Interest rates and terms are subject to change based on final underwriting approval.'
+      },
+      {
+        title: 'California Fair Lending Notice',
+        content: 'It is illegal to discriminate against credit applicants on the basis of race, color, religion, national origin, sex, marital status, age, or because all or part of the applicant\'s income derives from any public assistance program.'
+      }
+    ],
+    'NY': [
+      {
+        title: 'New York Disclosure',
+        content: 'This loan is subject to New York state lending regulations. All loan terms are subject to final approval and may change based on property appraisal and underwriting review.'
+      }
+    ],
+    'FL': [
+      {
+        title: 'Florida Disclosure',
+        content: 'This loan is subject to Florida state lending regulations. Borrower acknowledges receipt of all required disclosures and understands that final loan terms may differ from initial estimates.'
+      }
+    ],
+    'TX': [
+      {
+        title: 'Texas Disclosure',
+        content: 'This loan is subject to Texas state lending regulations. All loan terms are estimates and subject to final underwriting approval and property valuation.'
+      }
+    ]
+  };
+
+  // Return state-specific disclosures or default general disclosure
+  return stateDisclosures[state] || [
+    {
+      title: 'State Disclosure',
+      content: `This loan is subject to ${state} state lending regulations. All loan terms are estimates and subject to final underwriting approval, property appraisal, and compliance with applicable state and federal lending laws.`
+    }
+  ];
+}
+
 module.exports = { generateTermSheet, generateApplicationPdf };

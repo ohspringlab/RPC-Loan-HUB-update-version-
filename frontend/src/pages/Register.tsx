@@ -117,11 +117,14 @@ export default function Register() {
   const handleSubmit = async () => {
     setIsLoading(true);
     try {
+      // Strip phone formatting before sending (remove all non-digits)
+      const phoneDigits = formData.cellPhone.replace(/\D/g, '');
+      
       const result: any = await register({
         email: formData.email,
         password: formData.password,
         fullName: formData.fullName,
-        phone: formData.cellPhone,
+        phone: phoneDigits,
         propertyAddress: formData.propertyAddress,
         propertyCity: formData.city,
         propertyState: formData.state,
@@ -150,7 +153,18 @@ export default function Register() {
       // Navigate to loan request form with the new loan ID
       navigate(`/loan-request/${result.loanId}`);
     } catch (error: any) {
-      toast.error(error.message || "Registration failed. Please try again.");
+      console.error('Registration error:', error);
+      // Show detailed error message if available
+      if (error.errors && Array.isArray(error.errors)) {
+        const errorMessages = error.errors.map((e: any) => e.msg || e.message || `${e.param}: ${e.msg}`).join(', ');
+        toast.error(`Registration failed: ${errorMessages}`);
+      } else if (error.message?.includes('already registered') || error.error?.includes('already registered')) {
+        toast.error("This email is already registered. Please sign in instead or use a different email address.", {
+          duration: 6000
+        });
+      } else {
+        toast.error(error.message || error.error || "Registration failed. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
