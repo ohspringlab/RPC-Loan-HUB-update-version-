@@ -20,25 +20,37 @@ const PORT = process.env.PORT || 3001;
 
 // Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: (origin, callback) => {
+
+// CORS configuration
+const corsOptions = {
+  credentials: true
+};
+
+// Check if we should allow all origins (from .env)
+if (process.env.ALLOW_ALL_ORIGINS === 'true' || process.env.ALLOW_ALL_ORIGINS === '1') {
+  // Allow all origins
+  corsOptions.origin = true;
+} else {
+  // Use specific allowed origins
+  const allowedOrigins = [
+    'http://localhost:8080',
+    'http://localhost:5173',
+    process.env.FRONTEND_URL
+  ].filter(Boolean);
+  
+  corsOptions.origin = (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'http://localhost:8080',
-      'http://localhost:5173',
-      process.env.FRONTEND_URL
-    ].filter(Boolean);
     
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
-  },
-  credentials: true
-}));
+  };
+}
+
+app.use(cors(corsOptions));
 
 // Logging
 app.use(morgan('combined'));
