@@ -10,8 +10,12 @@ async function apiRequest<T>(
 ): Promise<T> {
   const token = getToken();
   
+  // Include current window location as frontend URL in headers so backend can use it
+  const frontendUrl = window.location.origin;
+  
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
+    'X-Frontend-URL': frontendUrl,
     ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers,
   };
@@ -35,6 +39,10 @@ async function apiRequest<T>(
     // Create error with status code for better handling
     const apiError = new Error(errorMessage) as any;
     apiError.status = response.status;
+    // Preserve eligibility errors and other error details
+    if (error.eligibilityErrors) apiError.eligibilityErrors = error.eligibilityErrors;
+    if (error.errors) apiError.errors = error.errors;
+    if (error.requiresVerification) apiError.requiresVerification = error.requiresVerification;
     throw apiError;
   }
 
@@ -53,7 +61,7 @@ export const authApi = {
     propertyState: string;
     propertyZip: string;
     propertyName?: string;
-  }) => apiRequest<{ token: string; user: User; loan: { id: string; loanNumber: string } }>('/auth/register', {
+  }) => apiRequest<{ token: string; user: User; loan: { id: string; loanNumber: string }; verificationUrl?: string }>('/auth/register', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
@@ -70,6 +78,17 @@ export const authApi = {
     apiRequest('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+
+  sendVerificationEmail: () =>
+    apiRequest<{ message: string; verificationUrl?: string }>('/auth/verify-email/send', {
+      method: 'POST',
+    }),
+
+  verifyEmail: (token: string) =>
+    apiRequest('/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
     }),
 };
 
@@ -111,6 +130,9 @@ export const loansApi = {
       method: 'POST',
       body: JSON.stringify({ applicationData }),
     }),
+
+  getClosingChecklist: (id: string) =>
+    apiRequest<{ checklist: any[] }>(`/loans/${id}/closing-checklist`),
 };
 
 // Documents API
@@ -260,6 +282,27 @@ export const opsApi = {
 
   getProcessors: () =>
     apiRequest<{ processors: { id: string; full_name: string; email: string }[] }>('/operations/processors'),
+
+  // Closing Checklist
+  getClosingChecklist: (loanId: string) =>
+    apiRequest<{ checklist: any[] }>(`/operations/loan/${loanId}/closing-checklist`),
+
+  addClosingChecklistItem: (loanId: string, data: { itemName: string; description?: string; category?: string; required?: boolean }) =>
+    apiRequest(`/operations/loan/${loanId}/closing-checklist`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateClosingChecklistItem: (loanId: string, itemId: string, data: { completed?: boolean; notes?: string }) =>
+    apiRequest(`/operations/loan/${loanId}/closing-checklist/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteClosingChecklistItem: (loanId: string, itemId: string) =>
+    apiRequest(`/operations/loan/${loanId}/closing-checklist/${itemId}`, {
+      method: 'DELETE',
+    }),
 };
 
 // Types
@@ -269,6 +312,7 @@ export interface User {
   fullName: string;
   phone: string;
   role: 'borrower' | 'operations' | 'admin';
+  email_verified?: boolean;
 }
 
 export interface Loan {

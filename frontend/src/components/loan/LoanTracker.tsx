@@ -15,6 +15,7 @@ export type LoanStatus =
   | "conditionally_approved"
   | "conditional_items_needed"
   | "conditional_commitment_issued"
+  | "closing_checklist_issued"
   | "clear_to_close"
   | "closing_scheduled"
   | "funded";
@@ -39,6 +40,7 @@ const steps: LoanTrackerStep[] = [
   { id: "appraisal_received", label: "Appraisal Received", description: "Value confirmed", icon: Building },
   { id: "conditionally_approved", label: "Cond. Approved", description: "Conditions issued", icon: Check },
   { id: "conditional_commitment_issued", label: "Commitment", description: "Commitment letter ready", icon: FileCheck },
+  { id: "closing_checklist_issued", label: "Closing Checklist", description: "Checklist provided", icon: ClipboardCheck },
   { id: "clear_to_close", label: "Clear to Close", description: "Ready for closing", icon: Check },
   { id: "closing_scheduled", label: "Closing Scheduled", description: "Date confirmed", icon: Calendar },
   { id: "funded", label: "Funded", description: "Loan complete!", icon: Banknote },
@@ -59,6 +61,7 @@ export const statusConfig: Record<LoanStatus, { label: string; color: string }> 
   "conditionally_approved": { label: "Cond. Approved", color: "bg-lime-100 text-lime-700" },
   "conditional_items_needed": { label: "Items Needed", color: "bg-orange-100 text-orange-700" },
   "conditional_commitment_issued": { label: "Commitment", color: "bg-emerald-100 text-emerald-700" },
+  "closing_checklist_issued": { label: "Closing Checklist Issued", color: "bg-purple-100 text-purple-700" },
   "clear_to_close": { label: "Clear to Close", color: "bg-green-100 text-green-700" },
   "closing_scheduled": { label: "Closing Scheduled", color: "bg-green-200 text-green-800" },
   "funded": { label: "Funded", color: "bg-green-300 text-green-900" },

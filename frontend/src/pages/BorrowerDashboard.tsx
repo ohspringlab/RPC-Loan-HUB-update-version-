@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { loansApi, documentsApi, profileApi, Loan, NeedsListItem, Notification } from "@/lib/api";
 import { 
   ArrowRight, Building2, DollarSign, FileText, Plus, User, Bell, Settings, LogOut, 
-  Clock, Upload, FolderOpen, Download, CheckCircle2, AlertCircle
+  Clock, Upload, FolderOpen, Download, CheckCircle2, AlertCircle, Mail, XCircle
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -108,6 +108,31 @@ export default function BorrowerDashboard() {
 
   return (
     <div className="min-h-screen bg-muted/30">
+      {/* Email Verification Banner */}
+      {user && !user.email_verified && (
+        <div className="bg-amber-50 border-b border-amber-200">
+          <div className="container mx-auto px-4 lg:px-8 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <XCircle className="w-5 h-5 text-amber-600" />
+                <p className="text-sm text-amber-800">
+                  Please verify your email address to submit loan requests.
+                </p>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => navigate('/verify-email')}
+                className="border-amber-300 text-amber-800 hover:bg-amber-100"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                Verify Email
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <header className="bg-white border-b sticky top-0 z-50">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex items-center justify-between h-16">

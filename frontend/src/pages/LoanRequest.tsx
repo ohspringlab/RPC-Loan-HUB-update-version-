@@ -41,10 +41,12 @@ interface LoanFormData {
 
 export default function LoanRequest() {
   const navigate = useNavigate();
-  const { loanId } = useParams();
+  const { loanId: urlLoanId } = useParams();
   const { isAuthenticated } = useAuth();
+  const [loanId, setLoanId] = useState<string | undefined>(urlLoanId);
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(!urlLoanId);
   const [dscrRatio, setDscrRatio] = useState<number | null>(null);
   const [formData, setFormData] = useState<LoanFormData>({
     propertyType: "",
@@ -69,6 +71,61 @@ export default function LoanRequest() {
       navigate('/register');
     }
   }, [isAuthenticated, navigate]);
+
+  // Initialize loan ID if not provided in URL
+  useEffect(() => {
+    const initializeLoanId = async () => {
+      if (urlLoanId) {
+        setLoanId(urlLoanId);
+        setIsInitializing(false);
+        return;
+      }
+
+      if (!isAuthenticated) return;
+
+      try {
+        // Check for existing loans
+        const loansRes = await loansApi.list();
+        
+        if (loansRes.loans && loansRes.loans.length > 0) {
+          // Use the most recent loan (first in list, typically sorted by created_at DESC)
+          const mostRecentLoan = loansRes.loans[0];
+          setLoanId(mostRecentLoan.id);
+          // Update URL without navigation
+          window.history.replaceState({}, '', `/loan-request/${mostRecentLoan.id}`);
+          setIsInitializing(false);
+        } else {
+          // No loans found - create a new loan with placeholder property address
+          // The user will update it when they fill out the form
+          try {
+            const newLoan = await loansApi.create({
+              propertyAddress: "To be updated",
+              propertyCity: "To be updated",
+              propertyState: "CA",
+              propertyZip: "00000"
+            });
+            setLoanId(newLoan.loan.id);
+            window.history.replaceState({}, '', `/loan-request/${newLoan.loan.id}`);
+            setIsInitializing(false);
+          } catch (createError: any) {
+            console.error('Failed to create loan:', createError);
+            toast.error("Failed to create loan. Please try again.");
+            setIsInitializing(false);
+          }
+        }
+      } catch (error: any) {
+        console.error('Failed to load loans:', error);
+        toast.error("Failed to load loan information. Please try again.");
+        setIsInitializing(false);
+      }
+    };
+
+    if (isAuthenticated && !urlLoanId) {
+      initializeLoanId();
+    } else if (urlLoanId) {
+      setIsInitializing(false);
+    }
+  }, [isAuthenticated, urlLoanId, navigate]);
 
   // Calculate DSCR when income fields change
   useEffect(() => {
@@ -124,19 +181,19 @@ export default function LoanRequest() {
 
     setIsLoading(true);
     try {
-      // Update loan with all details
+      // Update loan with all details - only include non-empty values for fields with check constraints
       await loansApi.update(loanId, {
-        propertyType: formData.propertyType as 'residential' | 'commercial',
+        propertyType: formData.propertyType || undefined,
         residentialUnits: formData.residentialUnits ? parseInt(formData.residentialUnits) : undefined,
         isPortfolio: formData.isPortfolio,
         portfolioCount: formData.portfolioCount ? parseInt(formData.portfolioCount) : undefined,
         commercialType: formData.commercialType || undefined,
-        requestType: formData.requestType as 'purchase' | 'refinance',
-        transactionType: formData.transactionType,
-        borrowerType: formData.borrowerType as 'owner_occupied' | 'investment',
+        requestType: formData.requestType || undefined,
+        transactionType: formData.transactionType || undefined,
+        borrowerType: formData.borrowerType || undefined,
         propertyValue: parseFloat(formData.propertyValue.replace(/[^0-9.]/g, "")),
         requestedLtv: parseFloat(formData.requestedLtv),
-        documentationType: formData.docType,
+        documentationType: formData.docType || undefined,
         annualRentalIncome: formData.annualRentalIncome ? parseFloat(formData.annualRentalIncome.replace(/[^0-9.]/g, "")) : undefined,
         annualOperatingExpenses: formData.annualOperatingExpenses ? parseFloat(formData.annualOperatingExpenses.replace(/[^0-9.]/g, "")) : undefined,
         annualLoanPayments: formData.annualLoanPayments ? parseFloat(formData.annualLoanPayments.replace(/[^0-9.]/g, "")) : undefined,
@@ -148,7 +205,32 @@ export default function LoanRequest() {
       toast.success("Loan request submitted! Proceeding to credit authorization.");
       navigate(`/dashboard/loans/${loanId}`);
     } catch (error: any) {
-      toast.error(error.message || "Failed to submit loan request");
+      // Handle eligibility errors
+      if (error.eligibilityErrors && Array.isArray(error.eligibilityErrors)) {
+        const errorMessages = error.eligibilityErrors.map((err: any) => {
+          if (typeof err === 'string') return err;
+          return err.message || JSON.stringify(err);
+        }).filter(Boolean);
+        
+        if (errorMessages.length > 0) {
+          toast.error(`Eligibility Issues:\n${errorMessages.join('\n')}`, { duration: 15000 });
+        } else {
+          toast.error("Loan request does not meet eligibility requirements. Please check your loan details.");
+        }
+      } else if (error.errors && Array.isArray(error.errors)) {
+        // Handle errors array format
+        toast.error(`Eligibility Issues:\n${error.errors.join('\n')}`, { duration: 15000 });
+      } else if (error.requiresVerification) {
+        toast.error("Please verify your email before submitting a loan request.", {
+          action: {
+            label: "Verify Email",
+            onClick: () => navigate('/verify-email')
+          },
+          duration: 10000
+        });
+      } else {
+        toast.error(error.message || "Failed to submit loan request");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -198,6 +280,25 @@ export default function LoanRequest() {
 
   const showDSCRFields = formData.borrowerType === "investment" && 
     ["dscr_rental", "bridge", "rate_term", "cash_out", "portfolio_refinance"].includes(formData.transactionType);
+
+  // Show loading state while initializing loan ID
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-muted/30">
+        <Navbar variant="light" />
+        <div className="container mx-auto px-4 pt-24 pb-12">
+          <div className="max-w-2xl mx-auto">
+            <Card className="shadow-lg">
+              <CardContent className="py-12 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold-600 mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading loan information...</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">

@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Landing from "./pages/Landing";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
+import VerifyEmail from "./pages/VerifyEmail";
 import LoanRequest from "./pages/LoanRequest";
 import BorrowerDashboard from "./pages/BorrowerDashboard";
 import LoanDetail from "./pages/LoanDetail";
@@ -49,6 +50,7 @@ function AppRoutes() {
       <Route path="/" element={<Landing />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Register />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       
       {/* Loan Request - requires auth */}
       <Route path="/loan-request" element={

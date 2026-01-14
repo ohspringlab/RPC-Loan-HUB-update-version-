@@ -15,7 +15,7 @@ const authenticate = async (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     const result = await db.query(
-      'SELECT id, email, full_name, phone, role, is_active FROM users WHERE id = $1',
+      'SELECT id, email, full_name, phone, role, is_active, email_verified FROM users WHERE id = $1',
       [decoded.userId]
     );
 

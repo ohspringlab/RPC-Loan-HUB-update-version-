@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
+const { v4: uuidv4 } = require('uuid');
 const db = require('../db/config');
 const { generateToken, authenticate } = require('../middleware/auth');
 const { logAudit } = require('../middleware/audit');
@@ -78,32 +79,37 @@ router.post('/register', registerValidation, async (req, res, next) => {
     const user = userResult.rows[0];
 
     // Create CRM profile
+    const crmProfileId = uuidv4();
     await db.query(`
-      INSERT INTO crm_profiles (user_id)
-      VALUES ($1)
-    `, [user.id]);
+      INSERT INTO crm_profiles (id, user_id)
+      VALUES ($1, $2)
+    `, [crmProfileId, user.id]);
 
     // Generate loan number
     const loanCount = await db.query('SELECT COUNT(*) FROM loan_requests');
     const loanNumber = `RPC-${new Date().getFullYear()}-${String(parseInt(loanCount.rows[0].count) + 1).padStart(4, '0')}`;
 
+    // Generate loan ID
+    const loanId = uuidv4();
+    
     // Create initial loan request (Step 1)
     const loanResult = await db.query(`
       INSERT INTO loan_requests (
-        user_id, loan_number, property_address, property_city, property_state, property_zip, property_name,
+        id, user_id, loan_number, property_address, property_city, property_state, property_zip, property_name,
         status, current_step
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'new_request', 1)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'new_request', 1)
       RETURNING id, loan_number
-    `, [user.id, loanNumber, propertyAddress, propertyCity, propertyState, propertyZip, propertyName || null]);
+    `, [loanId, user.id, loanNumber, propertyAddress, propertyCity, propertyState, propertyZip, propertyName || null]);
 
     const loan = loanResult.rows[0];
 
     // Log initial status
+    const statusHistoryId = uuidv4();
     await db.query(`
-      INSERT INTO loan_status_history (loan_id, status, step, changed_by, notes)
-      VALUES ($1, 'new_request', 1, $2, 'Loan request initiated during registration')
-    `, [loan.id, user.id]);
+      INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
+      VALUES ($1, $2, 'new_request', 1, $3, 'Loan request initiated during registration')
+    `, [statusHistoryId, loan.id, user.id]);
 
     // Create document folders automatically
     await createDocumentFoldersForLoan(loan.id);
@@ -122,6 +128,79 @@ router.post('/register', registerValidation, async (req, res, next) => {
       // Don't throw - email failure shouldn't break registration
     });
 
+    // Automatically send verification email on registration
+    const verificationToken = uuidv4();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    // Get frontend URL from request - prioritize client's actual host
+    const getFrontendUrl = (req) => {
+      // 1. Check if frontend URL is explicitly sent in request body/headers
+      const clientUrl = req.body?.frontendUrl || req.headers['x-frontend-url'];
+      if (clientUrl) return clientUrl;
+      
+      // 2. Use FRONTEND_URL from env if set
+      if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
+      
+      // 3. Try Origin header (most reliable for CORS requests)
+      const origin = req.get('origin');
+      if (origin) return origin;
+      
+      // 4. Try Referer header
+      const referer = req.get('referer');
+      if (referer) {
+        try {
+          const url = new URL(referer);
+          return `${url.protocol}//${url.host}`;
+        } catch (e) {
+          // Continue to next option
+        }
+      }
+      
+      // 5. Try to extract from X-Forwarded-Host (if behind proxy)
+      const forwardedHost = req.get('x-forwarded-host');
+      const forwardedProto = req.get('x-forwarded-proto') || req.protocol;
+      if (forwardedHost) {
+        return `${forwardedProto}://${forwardedHost}`;
+      }
+      
+      // 6. Last resort: use request host but replace port if FRONTEND_PORT is set
+      const host = req.get('host');
+      const hostWithoutPort = host.replace(/:\d+$/, '');
+      const port = process.env.FRONTEND_PORT || '8080';
+      return `${req.protocol}://${hostWithoutPort}:${port}`;
+    };
+    const frontendUrl = getFrontendUrl(req);
+    const verificationUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
+    
+    // Store token
+    await db.query(`
+      INSERT INTO email_verification_tokens (user_id, token, expires_at)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (user_id) DO UPDATE SET token = $2, expires_at = $3, created_at = NOW()
+    `, [user.id, verificationToken, expiresAt]).catch(error => {
+      console.error('Failed to create verification token:', error);
+    });
+
+    // Queue verification email
+    const emailQueueId = uuidv4();
+    await db.query(`
+      INSERT INTO email_queue (id, user_id, email_type, recipient_email, subject, template_data, status)
+      VALUES ($1, $2, 'email_verification', $3, 'Verify Your Email - RPC Lending', $4, 'pending')
+    `, [emailQueueId, user.id, email, JSON.stringify({
+      fullName: fullName,
+      verificationUrl
+    })]).catch(error => {
+      console.error('Failed to queue verification email:', error);
+    });
+
+    // In development, log the verification URL
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n📧 EMAIL VERIFICATION LINK (Development Mode):');
+      console.log('═══════════════════════════════════════════════════════════');
+      console.log(`Verification URL: ${verificationUrl}`);
+      console.log(`Token: ${verificationToken}`);
+      console.log('═══════════════════════════════════════════════════════════\n');
+    }
+
     // Generate token
     const token = generateToken(user.id);
 
@@ -138,7 +217,9 @@ router.post('/register', registerValidation, async (req, res, next) => {
       loan: {
         id: loan.id,
         loanNumber: loan.loan_number
-      }
+      },
+      // In development, include verification URL for testing
+      ...(process.env.NODE_ENV !== 'production' && { verificationUrl })
     });
   } catch (error) {
     next(error);
@@ -212,7 +293,8 @@ router.get('/me', authenticate, async (req, res) => {
       email: req.user.email,
       fullName: req.user.full_name,
       phone: req.user.phone,
-      role: req.user.role
+      role: req.user.role,
+      email_verified: req.user.email_verified || false
     },
     profile: profile.rows[0] || null,
     loanCount: parseInt(loanCount.rows[0].count)
@@ -245,6 +327,136 @@ router.post('/change-password', authenticate, [
     await logAudit(req.user.id, 'PASSWORD_CHANGED', 'user', req.user.id, req);
 
     res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Email verification endpoints
+// Send verification email
+router.post('/verify-email/send', authenticate, async (req, res, next) => {
+  try {
+    const user = req.user;
+    
+    // Check if already verified
+    if (user.email_verified) {
+      return res.json({ message: 'Email already verified' });
+    }
+
+    // Generate verification token
+    const verificationToken = uuidv4();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Store token in database
+    await db.query(`
+      INSERT INTO email_verification_tokens (user_id, token, expires_at)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (user_id) DO UPDATE SET token = $2, expires_at = $3, created_at = NOW()
+    `, [user.id, verificationToken, expiresAt]);
+
+    // Send verification email
+    // Get frontend URL from request - prioritize client's actual host
+    const getFrontendUrl = (req) => {
+      // 1. Check if frontend URL is explicitly sent in request body/headers
+      const clientUrl = req.body?.frontendUrl || req.headers['x-frontend-url'];
+      if (clientUrl) return clientUrl;
+      
+      // 2. Use FRONTEND_URL from env if set
+      if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
+      
+      // 3. Try Origin header (most reliable for CORS requests)
+      const origin = req.get('origin');
+      if (origin) return origin;
+      
+      // 4. Try Referer header
+      const referer = req.get('referer');
+      if (referer) {
+        try {
+          const url = new URL(referer);
+          return `${url.protocol}//${url.host}`;
+        } catch (e) {
+          // Continue to next option
+        }
+      }
+      
+      // 5. Try to extract from X-Forwarded-Host (if behind proxy)
+      const forwardedHost = req.get('x-forwarded-host');
+      const forwardedProto = req.get('x-forwarded-proto') || req.protocol;
+      if (forwardedHost) {
+        return `${forwardedProto}://${forwardedHost}`;
+      }
+      
+      // 6. Last resort: use request host but replace port if FRONTEND_PORT is set
+      const host = req.get('host');
+      const hostWithoutPort = host.replace(/:\d+$/, '');
+      const port = process.env.FRONTEND_PORT || '8080';
+      return `${req.protocol}://${hostWithoutPort}:${port}`;
+    };
+    const frontendUrl = getFrontendUrl(req);
+    const verificationUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
+    
+    // Queue email
+    const emailQueueId = uuidv4();
+    await db.query(`
+      INSERT INTO email_queue (id, user_id, email_type, recipient_email, subject, template_data, status)
+      VALUES ($1, $2, 'email_verification', $3, 'Verify Your Email - RPC Lending', $4, 'pending')
+    `, [emailQueueId, user.id, user.email, JSON.stringify({
+      fullName: user.full_name,
+      verificationUrl
+    })]);
+
+    // In development, log the verification URL for easy testing
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n📧 EMAIL VERIFICATION LINK (Development Mode):');
+      console.log('═══════════════════════════════════════════════════════════');
+      console.log(`Verification URL: ${verificationUrl}`);
+      console.log(`Token: ${verificationToken}`);
+      console.log('═══════════════════════════════════════════════════════════\n');
+    }
+
+    res.json({ 
+      message: 'Verification email sent',
+      // In development, also return the URL for testing
+      ...(process.env.NODE_ENV !== 'production' && { verificationUrl })
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Verify email with token
+router.post('/verify-email', async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token required' });
+    }
+
+    // Check token
+    const tokenCheck = await db.query(`
+      SELECT user_id, expires_at FROM email_verification_tokens
+      WHERE token = $1 AND expires_at > NOW()
+    `, [token]);
+
+    if (tokenCheck.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired verification token' });
+    }
+
+    const userId = tokenCheck.rows[0].user_id;
+
+    // Mark email as verified
+    await db.query(`
+      UPDATE users SET email_verified = true, updated_at = NOW()
+      WHERE id = $1
+    `, [userId]);
+
+    // Delete used token
+    await db.query(`
+      DELETE FROM email_verification_tokens WHERE token = $1
+    `, [token]);
+
+    res.json({ message: 'Email verified successfully' });
   } catch (error) {
     next(error);
   }

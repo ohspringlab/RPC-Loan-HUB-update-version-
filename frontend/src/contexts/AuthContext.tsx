@@ -60,10 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (data: RegisterData) => {
-    const { token, user, loan } = await authApi.register(data);
+    const result: any = await authApi.register(data);
+    const { token, user, loan, verificationUrl } = result;
     localStorage.setItem('rpc_token', token);
     setUser(user);
-    return { loanId: loan.id, loanNumber: loan.loanNumber };
+    return { 
+      loanId: loan.id, 
+      loanNumber: loan.loanNumber,
+      ...(verificationUrl && { verificationUrl })
+    };
   };
 
   const logout = () => {

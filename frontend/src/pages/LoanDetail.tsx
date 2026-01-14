@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LoanTrackerFull, LoanTrackerDominos, statusConfig, LoanStatus } from "@/components/loan/LoanTracker";
+import { FullApplicationForm } from "@/components/loan/FullApplicationForm";
 import { loansApi, documentsApi, paymentsApi, Loan, NeedsListItem, SoftQuote } from "@/lib/api";
 import { 
   ArrowLeft, Building2, DollarSign, FileText, Download, CreditCard, 
-  CheckCircle2, AlertCircle, Upload, Shield, FileCheck, Calendar
+  CheckCircle2, AlertCircle, Upload, Shield, FileCheck, Calendar, ClipboardCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +25,7 @@ export default function LoanDetail() {
   const { user } = useAuth();
   const [loan, setLoan] = useState<Loan | null>(null);
   const [needsList, setNeedsList] = useState<NeedsListItem[]>([]);
+  const [closingChecklist, setClosingChecklist] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreditAuth, setShowCreditAuth] = useState(false);
   const [showAppraisalPayment, setShowAppraisalPayment] = useState(false);
@@ -38,12 +40,14 @@ export default function LoanDetail() {
 
   const loadLoanData = async () => {
     try {
-      const [loanRes, needsRes] = await Promise.all([
+      const [loanRes, needsRes, checklistRes] = await Promise.all([
         loansApi.get(loanId!),
-        documentsApi.getNeedsList(loanId!)
+        documentsApi.getNeedsList(loanId!),
+        loansApi.getClosingChecklist(loanId!).catch(() => ({ checklist: [] }))
       ]);
       setLoan(loanRes.loan);
       setNeedsList(needsRes.needsList);
+      setClosingChecklist(checklistRes.checklist || []);
     } catch (error: any) {
       toast.error(error.message || "Failed to load loan details");
       navigate("/dashboard");
@@ -347,6 +351,71 @@ export default function LoanDetail() {
                   <Button variant="gold" onClick={() => setShowAppraisalPayment(true)}>
                     Pay Appraisal Fee
                   </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Full Application Form */}
+            {loan.status === "needs_list_complete" && !loan.full_application_completed && (
+              <FullApplicationForm 
+                loanId={loanId!} 
+                loan={loan} 
+                onComplete={loadLoanData}
+              />
+            )}
+
+            {/* Closing Checklist */}
+            {(loan.status === "conditional_commitment_issued" || loan.status === "closing_checklist_issued" || loan.status === "clear_to_close") && closingChecklist.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ClipboardCheck className="w-5 h-5" />
+                    Closing Checklist
+                  </CardTitle>
+                  <CardDescription>
+                    Complete these items before closing
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {closingChecklist.map((item) => (
+                      <div 
+                        key={item.id} 
+                        className={`flex items-start gap-3 p-3 border rounded-lg ${
+                          item.completed ? 'bg-muted/50' : ''
+                        }`}
+                      >
+                        <Checkbox
+                          checked={item.completed}
+                          disabled
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className={`font-medium ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
+                              {item.item_name}
+                            </p>
+                            {item.required && (
+                              <Badge variant="outline" className="text-xs">Required</Badge>
+                            )}
+                          </div>
+                          {item.description && (
+                            <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                          )}
+                          {item.completed && item.completed_by_name && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Completed by {item.completed_by_name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      {closingChecklist.filter((item: any) => item.completed).length} of {closingChecklist.length} items completed
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             )}

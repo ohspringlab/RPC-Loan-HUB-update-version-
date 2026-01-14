@@ -78,6 +78,16 @@ export default function Register() {
   };
 
   const validateStep2 = () => {
+    // Validate subject property
+    if (!formData.propertyAddress || !formData.city || !formData.state || !formData.zip) {
+      toast.error("Please fill in all property address fields");
+      return false;
+    }
+    if (formData.zip.length < 5) {
+      toast.error("Please enter a valid ZIP code");
+      return false;
+    }
+    // Validate password
     if (!formData.password || !formData.confirmPassword) {
       toast.error("Please enter and confirm your password");
       return false;
@@ -93,24 +103,11 @@ export default function Register() {
     return true;
   };
 
-  const validateStep3 = () => {
-    if (!formData.propertyAddress || !formData.city || !formData.state || !formData.zip) {
-      toast.error("Please fill in all property address fields");
-      return false;
-    }
-    if (formData.zip.length < 5) {
-      toast.error("Please enter a valid ZIP code");
-      return false;
-    }
-    return true;
-  };
-
   const handleNext = () => {
     if (step === 1 && !validateStep1()) return;
     if (step === 2 && !validateStep2()) return;
-    if (step === 3 && !validateStep3()) return;
     
-    if (step < 3) {
+    if (step < 2) {
       setStep(step + 1);
     } else {
       handleSubmit();
@@ -120,7 +117,7 @@ export default function Register() {
   const handleSubmit = async () => {
     setIsLoading(true);
     try {
-      const { loanId } = await register({
+      const result: any = await register({
         email: formData.email,
         password: formData.password,
         fullName: formData.fullName,
@@ -133,8 +130,25 @@ export default function Register() {
       });
       
       toast.success("Account created successfully! Let's complete your loan request.");
+      
+      // In development, show verification URL if provided
+      if (result?.verificationUrl) {
+        console.log('Verification URL:', result.verificationUrl);
+        toast.info('Development Mode: Email verification link available', {
+          description: 'Check the browser console for the verification URL',
+          duration: 10000,
+          action: {
+            label: 'Copy URL',
+            onClick: () => {
+              navigator.clipboard.writeText(result.verificationUrl);
+              toast.success('Verification URL copied to clipboard');
+            }
+          }
+        });
+      }
+      
       // Navigate to loan request form with the new loan ID
-      navigate(`/loan-request/${loanId}`);
+      navigate(`/loan-request/${result.loanId}`);
     } catch (error: any) {
       toast.error(error.message || "Registration failed. Please try again.");
     } finally {
@@ -180,8 +194,8 @@ export default function Register() {
           <div className="mb-8">
             <StepIndicator 
               currentStep={step} 
-              totalSteps={3}
-              labels={["Your Info", "Security", "Subject Property"]}
+              totalSteps={2}
+              labels={["Your Info", "Subject Property & Security"]}
             />
           </div>
 
@@ -191,19 +205,16 @@ export default function Register() {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gold-500/10 flex items-center justify-center">
                   {step === 1 && <User className="w-5 h-5 text-gold-600" />}
-                  {step === 2 && <CheckCircle2 className="w-5 h-5 text-gold-600" />}
-                  {step === 3 && <MapPin className="w-5 h-5 text-gold-600" />}
+                  {step === 2 && <MapPin className="w-5 h-5 text-gold-600" />}
                 </div>
                 <div>
                   <CardTitle>
                     {step === 1 && "Personal Information"}
-                    {step === 2 && "Create Password"}
-                    {step === 3 && "Subject Property"}
+                    {step === 2 && "Subject Property & Password"}
                   </CardTitle>
                   <CardDescription>
                     {step === 1 && "Tell us about yourself"}
-                    {step === 2 && "Secure your account"}
-                    {step === 3 && "Property you're financing"}
+                    {step === 2 && "Property you're financing and secure your account"}
                   </CardDescription>
                 </div>
               </div>
@@ -248,136 +259,138 @@ export default function Register() {
 
               {step === 2 && (
                 <>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password *</Label>
-                    <div className="relative">
+                  {/* Subject Property Section */}
+                  <div className="space-y-4 pb-4 border-b">
+                    <div className="bg-gold-500/10 border border-gold-500/20 rounded-lg p-4">
+                      <p className="text-sm text-gold-700">
+                        <strong>Subject Property:</strong> Enter the address of the property you want to finance.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="propertyAddress">Property Address *</Label>
                       <Input
-                        id="password"
-                        name="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Create a strong password"
-                        value={formData.password}
+                        id="propertyAddress"
+                        name="propertyAddress"
+                        placeholder="123 Main Street"
+                        value={formData.propertyAddress}
                         onChange={handleInputChange}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
                     </div>
-                    {formData.password && (
-                      <div className="space-y-1">
-                        <div className="flex gap-1">
-                          {[1, 2, 3, 4].map((i) => (
-                            <div
-                              key={i}
-                              className={`h-1 flex-1 rounded-full ${
-                                i <= strength.strength ? strength.color : "bg-muted"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Password strength: <span className="font-medium">{strength.label}</span>
-                        </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="city">City *</Label>
+                        <Input
+                          id="city"
+                          name="city"
+                          placeholder="Los Angeles"
+                          value={formData.city}
+                          onChange={handleInputChange}
+                        />
                       </div>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password *</Label>
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      placeholder="Confirm your password"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                    />
-                    {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                      <p className="text-xs text-destructive">Passwords do not match</p>
-                    )}
-                  </div>
-                  <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
-                    <p className="font-medium text-foreground mb-2">Password requirements:</p>
-                    <ul className="space-y-1">
-                      {[
-                        { met: formData.password.length >= 8, text: "At least 8 characters" },
-                        { met: /[A-Z]/.test(formData.password), text: "One uppercase letter" },
-                        { met: /[0-9]/.test(formData.password), text: "One number" },
-                        { met: /[^A-Za-z0-9]/.test(formData.password), text: "One special character" },
-                      ].map((req, i) => (
-                        <li key={i} className="flex items-center gap-2">
-                          <CheckCircle2 className={`w-3.5 h-3.5 ${req.met ? "text-success" : "text-muted"}`} />
-                          {req.text}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </>
-              )}
-
-              {step === 3 && (
-                <>
-                  <div className="bg-gold-500/10 border border-gold-500/20 rounded-lg p-4 mb-4">
-                    <p className="text-sm text-gold-700">
-                      <strong>Subject Property:</strong> Enter the address of the property you want to finance.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="propertyAddress">Property Address *</Label>
-                    <Input
-                      id="propertyAddress"
-                      name="propertyAddress"
-                      placeholder="123 Main Street"
-                      value={formData.propertyAddress}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="state">State *</Label>
+                        <Input
+                          id="state"
+                          name="state"
+                          placeholder="CA"
+                          maxLength={2}
+                          value={formData.state}
+                          onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase() })}
+                        />
+                      </div>
+                    </div>
                     <div className="space-y-2">
-                      <Label htmlFor="city">City *</Label>
+                      <Label htmlFor="zip">ZIP Code *</Label>
                       <Input
-                        id="city"
-                        name="city"
-                        placeholder="Los Angeles"
-                        value={formData.city}
+                        id="zip"
+                        name="zip"
+                        placeholder="90001"
+                        maxLength={5}
+                        value={formData.zip}
                         onChange={handleInputChange}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="state">State *</Label>
+                      <Label htmlFor="propertyName">Entity Name (TBD LLC)</Label>
                       <Input
-                        id="state"
-                        name="state"
-                        placeholder="CA"
-                        maxLength={2}
-                        value={formData.state}
-                        onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase() })}
+                        id="propertyName"
+                        name="propertyName"
+                        placeholder="TBD LLC"
+                        value={formData.propertyName}
+                        onChange={handleInputChange}
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="zip">ZIP Code *</Label>
-                    <Input
-                      id="zip"
-                      name="zip"
-                      placeholder="90001"
-                      maxLength={5}
-                      value={formData.zip}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="propertyName">Entity Name (TBD LLC)</Label>
-                    <Input
-                      id="propertyName"
-                      name="propertyName"
-                      placeholder="TBD LLC"
-                      value={formData.propertyName}
-                      onChange={handleInputChange}
-                    />
+
+                  {/* Password Section */}
+                  <div className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password *</Label>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          name="password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Create a strong password"
+                          value={formData.password}
+                          onChange={handleInputChange}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {formData.password && (
+                        <div className="space-y-1">
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4].map((i) => (
+                              <div
+                                key={i}
+                                className={`h-1 flex-1 rounded-full ${
+                                  i <= strength.strength ? strength.color : "bg-muted"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Password strength: <span className="font-medium">{strength.label}</span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                      <Input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type="password"
+                        placeholder="Confirm your password"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                      />
+                      {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                        <p className="text-xs text-destructive">Passwords do not match</p>
+                      )}
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
+                      <p className="font-medium text-foreground mb-2">Password requirements:</p>
+                      <ul className="space-y-1">
+                        {[
+                          { met: formData.password.length >= 8, text: "At least 8 characters" },
+                          { met: /[A-Z]/.test(formData.password), text: "One uppercase letter" },
+                          { met: /[0-9]/.test(formData.password), text: "One number" },
+                          { met: /[^A-Za-z0-9]/.test(formData.password), text: "One special character" },
+                        ].map((req, i) => (
+                          <li key={i} className="flex items-center gap-2">
+                            <CheckCircle2 className={`w-3.5 h-3.5 ${req.met ? "text-success" : "text-muted"}`} />
+                            {req.text}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
                 </>
               )}
@@ -400,7 +413,7 @@ export default function Register() {
                 <Button variant="gold" onClick={handleNext} disabled={isLoading}>
                   {isLoading ? (
                     "Creating Account..."
-                  ) : step === 3 ? (
+                  ) : step === 2 ? (
                     "Create Account & Continue"
                   ) : (
                     <>

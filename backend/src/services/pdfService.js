@@ -132,6 +132,31 @@ const generateApplicationPdf = async (loan, applicationData) => {
         });
       }
 
+      // Add state-specific disclosures
+      doc.addPage();
+      doc.fontSize(16).font('Helvetica-Bold').text('State Disclosures and Legal Notices', { align: 'center' });
+      doc.moveDown();
+      
+      const state = loan.property_state?.toUpperCase() || 'CA';
+      const disclosures = getStateDisclosures(state);
+      
+      doc.fontSize(11).font('Helvetica');
+      disclosures.forEach(disclosure => {
+        doc.fontSize(12).font('Helvetica-Bold').text(disclosure.title);
+        doc.fontSize(11).font('Helvetica');
+        doc.text(disclosure.content, { align: 'left' });
+        doc.moveDown();
+      });
+
+      // General disclosures
+      doc.fontSize(12).font('Helvetica-Bold').text('General Disclosures');
+      doc.fontSize(11).font('Helvetica');
+      doc.text('This loan application is subject to credit approval and property valuation. Rates and terms are estimates and subject to change. Final terms will be provided in the commitment letter.');
+      doc.moveDown();
+      doc.text('Riverside Park Capital is licensed in accordance with applicable state and federal lending regulations.');
+      doc.moveDown();
+      doc.text('By signing this application, you acknowledge that you have read and understand all disclosures provided.');
+
       doc.end();
 
       stream.on('finish', () => {

@@ -517,4 +517,138 @@ router.get('/processors', async (req, res, next) => {
   }
 });
 
+// Get closing checklist for a loan
+router.get('/loan/:id/closing-checklist', async (req, res, next) => {
+  try {
+    const result = await db.query(`
+      SELECT cci.*, 
+             u1.full_name as created_by_name,
+             u2.full_name as completed_by_name
+      FROM closing_checklist_items cci
+      LEFT JOIN users u1 ON cci.created_by = u1.id
+      LEFT JOIN users u2 ON cci.completed_by = u2.id
+      WHERE cci.loan_id = $1
+      ORDER BY cci.category, cci.created_at
+    `, [req.params.id]);
+
+    res.json({ checklist: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Add closing checklist item (operations only)
+router.post('/loan/:id/closing-checklist', [
+  body('itemName').trim().notEmpty(),
+  body('category').optional(),
+  body('required').optional().isBoolean(),
+  body('description').optional()
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { itemName, description, category, required } = req.body;
+    const checklistId = require('uuid').v4();
+
+    const result = await db.query(`
+      INSERT INTO closing_checklist_items (
+        id, loan_id, item_name, description, category, required, created_by
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `, [checklistId, req.params.id, itemName, description || null, category || 'general', required !== false, req.user.id]);
+
+    await logAudit(req.user.id, 'CLOSING_CHECKLIST_ITEM_ADDED', 'loan', req.params.id, req, {
+      itemName,
+      category
+    });
+
+    res.status(201).json({ item: result.rows[0] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update closing checklist item
+router.put('/loan/:id/closing-checklist/:itemId', [
+  body('completed').optional().isBoolean(),
+  body('notes').optional()
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { completed, notes } = req.body;
+
+    let updateQuery = `
+      UPDATE closing_checklist_items SET
+        updated_at = NOW()
+    `;
+    const params = [];
+    let paramIndex = 1;
+
+    if (completed !== undefined) {
+      updateQuery += `, completed = $${paramIndex++}`;
+      params.push(completed);
+      
+      if (completed) {
+        updateQuery += `, completed_by = $${paramIndex++}, completed_at = NOW()`;
+        params.push(req.user.id);
+      } else {
+        updateQuery += `, completed_by = NULL, completed_at = NULL`;
+      }
+    }
+
+    if (notes !== undefined) {
+      updateQuery += `, notes = $${paramIndex++}`;
+      params.push(notes);
+    }
+
+    updateQuery += ` WHERE id = $${paramIndex++} AND loan_id = $${paramIndex++}`;
+    params.push(req.params.itemId, req.params.id);
+
+    const result = await db.query(updateQuery, params);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Checklist item not found' });
+    }
+
+    await logAudit(req.user.id, 'CLOSING_CHECKLIST_ITEM_UPDATED', 'loan', req.params.id, req, {
+      itemId: req.params.itemId,
+      completed
+    });
+
+    res.json({ message: 'Checklist item updated' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete closing checklist item (operations only)
+router.delete('/loan/:id/closing-checklist/:itemId', async (req, res, next) => {
+  try {
+    const result = await db.query(`
+      DELETE FROM closing_checklist_items
+      WHERE id = $1 AND loan_id = $2
+    `, [req.params.itemId, req.params.id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Checklist item not found' });
+    }
+
+    await logAudit(req.user.id, 'CLOSING_CHECKLIST_ITEM_DELETED', 'loan', req.params.id, req, {
+      itemId: req.params.itemId
+    });
+
+    res.json({ message: 'Checklist item deleted' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

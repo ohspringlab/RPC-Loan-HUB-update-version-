@@ -119,23 +119,26 @@ router.post('/', authenticate, [
 
     const { propertyAddress, propertyCity, propertyState, propertyZip, propertyName } = req.body;
 
-    // Generate loan number
+    // Generate loan ID and loan number
+    const { v4: uuidv4 } = require('uuid');
+    const loanId = uuidv4();
     const loanCount = await db.query('SELECT COUNT(*) FROM loan_requests');
     const loanNumber = `RPC-${new Date().getFullYear()}-${String(parseInt(loanCount.rows[0].count) + 1).padStart(4, '0')}`;
 
     const result = await db.query(`
       INSERT INTO loan_requests (
-        user_id, loan_number, property_address, property_city, property_state, property_zip, property_name,
+        id, user_id, loan_number, property_address, property_city, property_state, property_zip, property_name,
         status, current_step
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'new_request', 1)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'new_request', 1)
       RETURNING *
-    `, [req.user.id, loanNumber, propertyAddress, propertyCity, propertyState, propertyZip, propertyName || null]);
+    `, [loanId, req.user.id, loanNumber, propertyAddress, propertyCity, propertyState, propertyZip, propertyName || null]);
 
+    const statusHistoryId = uuidv4();
     await db.query(`
-      INSERT INTO loan_status_history (loan_id, status, step, changed_by, notes)
-      VALUES ($1, 'new_request', 1, $2, 'New loan request created')
-    `, [result.rows[0].id, req.user.id]);
+      INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
+      VALUES ($1, $2, 'new_request', 1, $3, 'New loan request created')
+    `, [statusHistoryId, result.rows[0].id, req.user.id]);
 
     // Create document folders automatically
     await createDocumentFoldersForLoan(result.rows[0].id);
@@ -163,6 +166,12 @@ router.put('/:id', authenticate, async (req, res, next) => {
       annualRentalIncome, annualOperatingExpenses, annualLoanPayments,
       propertyAddress, propertyCity, propertyState, propertyZip, propertyName
     } = req.body;
+
+    // Normalize empty strings to null for fields with check constraints
+    const normalizedRequestType = (requestType && requestType.trim() !== '') ? requestType : null;
+    const normalizedBorrowerType = (borrowerType && borrowerType.trim() !== '') ? borrowerType : null;
+    const normalizedPropertyType = (propertyType && propertyType.trim() !== '') ? propertyType : null;
+    const normalizedDocumentationType = (documentationType && documentationType.trim() !== '') ? documentationType : null;
 
     // Calculate loan amount
     const loanAmount = propertyValue && requestedLtv ? (propertyValue * requestedLtv / 100) : null;
@@ -205,8 +214,8 @@ router.put('/:id', authenticate, async (req, res, next) => {
       RETURNING *
     `, [
       propertyAddress, propertyCity, propertyState, propertyZip, propertyName,
-      propertyType, residentialUnits, isPortfolio, portfolioCount, commercialType,
-      requestType, transactionType, borrowerType, propertyValue, requestedLtv, loanAmount, documentationType,
+      normalizedPropertyType, residentialUnits, isPortfolio, portfolioCount, commercialType,
+      normalizedRequestType, transactionType, normalizedBorrowerType, propertyValue, requestedLtv, loanAmount, normalizedDocumentationType,
       annualRentalIncome, annualOperatingExpenses, noi, annualLoanPayments, dscrRatio,
       req.params.id
     ]);
@@ -222,6 +231,18 @@ router.put('/:id', authenticate, async (req, res, next) => {
 // Submit loan request for quote
 router.post('/:id/submit', authenticate, async (req, res, next) => {
   try {
+    // Check email verification
+    const userCheck = await db.query('SELECT email_verified FROM users WHERE id = $1', [req.user.id]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (!userCheck.rows[0].email_verified) {
+      return res.status(403).json({ 
+        error: 'Email verification required',
+        requiresVerification: true 
+      });
+    }
+
     const check = await db.query('SELECT * FROM loan_requests WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     if (check.rows.length === 0) {
       return res.status(404).json({ error: 'Loan not found' });
@@ -234,15 +255,30 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       return res.status(400).json({ error: 'Please complete all required loan details' });
     }
 
+    // Run eligibility checks
+    const { checkEligibility } = require('../services/eligibilityService');
+    const eligibility = checkEligibility(loan);
+    
+    if (!eligibility.eligible) {
+      // Format errors for frontend display
+      const errorMessages = eligibility.errors.map(err => err.message || err);
+      return res.status(400).json({
+        error: 'Loan request does not meet eligibility requirements',
+        eligibilityErrors: eligibility.errors,
+        errors: errorMessages // Also include as simple array for compatibility
+      });
+    }
+
     await db.query(`
       UPDATE loan_requests SET status = 'quote_requested', current_step = 3, updated_at = NOW()
       WHERE id = $1
     `, [req.params.id]);
 
+    const statusHistoryId1 = require('uuid').v4();
     await db.query(`
-      INSERT INTO loan_status_history (loan_id, status, step, changed_by, notes)
-      VALUES ($1, 'quote_requested', 3, $2, 'Loan request submitted for quote')
-    `, [req.params.id, req.user.id]);
+      INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
+      VALUES ($1, $2, 'quote_requested', 3, $3, 'Loan request submitted for quote')
+    `, [statusHistoryId1, req.params.id, req.user.id]);
 
     await logAudit(req.user.id, 'LOAN_SUBMITTED', 'loan', req.params.id, req);
 
@@ -285,10 +321,11 @@ router.post('/:id/credit-auth', authenticate, [
       WHERE id = $2
     `, [clientIp, req.params.id]);
 
+    const statusHistoryId2 = require('uuid').v4();
     await db.query(`
-      INSERT INTO loan_status_history (loan_id, status, step, changed_by, notes)
-      VALUES ($1, 'credit_authorized', 4, $2, 'Credit authorization consent provided')
-    `, [req.params.id, req.user.id]);
+      INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
+      VALUES ($1, $2, 'credit_authorized', 4, $3, 'Credit authorization consent provided')
+    `, [statusHistoryId2, req.params.id, req.user.id]);
 
     await logAudit(req.user.id, 'CREDIT_AUTHORIZED', 'loan', req.params.id, req, { ip: clientIp });
 
@@ -352,10 +389,11 @@ router.post('/:id/soft-quote', authenticate, async (req, res, next) => {
       WHERE id = $5
     `, [JSON.stringify(quoteData), quoteData.interestRateMin, quoteData.interestRateMax, termSheetPath, req.params.id]);
 
+    const statusHistoryId3 = require('uuid').v4();
     await db.query(`
-      INSERT INTO loan_status_history (loan_id, status, step, changed_by, notes)
-      VALUES ($1, 'soft_quote_issued', 5, $2, $3)
-    `, [req.params.id, req.user.id, `Soft quote generated: ${quoteData.rateRange}`]);
+      INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
+      VALUES ($1, $2, 'soft_quote_issued', 5, $3, $4)
+    `, [statusHistoryId3, req.params.id, req.user.id, `Soft quote generated: ${quoteData.rateRange}`]);
 
     // Generate initial needs list
     await generateInitialNeedsListForLoan(req.params.id, loan);
@@ -395,10 +433,11 @@ router.post('/:id/sign-term-sheet', authenticate, async (req, res, next) => {
       WHERE id = $1
     `, [req.params.id]);
 
+    const statusHistoryId4 = require('uuid').v4();
     await db.query(`
-      INSERT INTO loan_status_history (loan_id, status, step, changed_by, notes)
-      VALUES ($1, 'term_sheet_signed', 5, $2, 'Term sheet signed by borrower')
-    `, [req.params.id, req.user.id]);
+      INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
+      VALUES ($1, $2, 'term_sheet_signed', 5, $3, 'Term sheet signed by borrower')
+    `, [statusHistoryId4, req.params.id, req.user.id]);
 
     // Send needs list email
     const loan = await db.query('SELECT * FROM loan_requests WHERE id = $1', [req.params.id]);
@@ -421,28 +460,66 @@ router.post('/:id/sign-term-sheet', authenticate, async (req, res, next) => {
 // Submit full application (Step 7)
 router.post('/:id/full-application', authenticate, async (req, res, next) => {
   try {
-    const check = await db.query('SELECT id FROM loan_requests WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    const check = await db.query('SELECT * FROM loan_requests WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     if (check.rows.length === 0) {
       return res.status(404).json({ error: 'Loan not found' });
     }
 
+    const loan = check.rows[0];
     const { applicationData } = req.body;
+
+    // Generate PDF
+    const { generateApplicationPdf } = require('../services/pdfService');
+    const pdfPath = await generateApplicationPdf(loan, applicationData);
 
     await db.query(`
       UPDATE loan_requests SET
         full_application_data = $1,
         full_application_completed = true,
+        full_application_pdf_url = $2,
         current_step = GREATEST(current_step, 7),
         updated_at = NOW()
-      WHERE id = $2
-    `, [JSON.stringify(applicationData), req.params.id]);
+      WHERE id = $3
+    `, [JSON.stringify(applicationData), pdfPath, req.params.id]);
 
+    const statusHistoryId5 = require('uuid').v4();
     await db.query(`
-      INSERT INTO loan_status_history (loan_id, status, step, changed_by, notes)
-      VALUES ($1, 'full_application_submitted', 7, $2, 'Full loan application submitted')
-    `, [req.params.id, req.user.id]);
+      INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
+      VALUES ($1, $2, 'full_application_submitted', 7, $3, 'Full loan application submitted')
+    `, [statusHistoryId5, req.params.id, req.user.id]);
 
-    res.json({ message: 'Full application submitted' });
+    await logAudit(req.user.id, 'FULL_APPLICATION_SUBMITTED', 'loan', req.params.id, req);
+
+    res.json({ 
+      message: 'Full application submitted',
+      pdfUrl: pdfPath
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get closing checklist for borrower
+router.get('/:id/closing-checklist', authenticate, async (req, res, next) => {
+  try {
+    // Verify ownership
+    const check = await db.query('SELECT id FROM loan_requests WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: 'Loan not found' });
+    }
+
+    const result = await db.query(`
+      SELECT cci.*, 
+             u1.full_name as created_by_name,
+             u2.full_name as completed_by_name
+      FROM closing_checklist_items cci
+      LEFT JOIN users u1 ON cci.created_by = u1.id
+      LEFT JOIN users u2 ON cci.completed_by = u2.id
+      WHERE cci.loan_id = $1
+      ORDER BY cci.category, cci.created_at
+    `, [req.params.id]);
+
+    res.json({ checklist: result.rows });
   } catch (error) {
     next(error);
   }
