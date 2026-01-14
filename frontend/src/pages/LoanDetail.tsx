@@ -297,6 +297,84 @@ export default function LoanDetail() {
               </Card>
             )}
 
+            {/* Appraisal Received - Borrower Guidance */}
+            {loan.status === "appraisal_received" && !isOpsView && (
+              <Card className="border-green-500/50 bg-green-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-green-700">
+                    <Building2 className="w-5 h-5" />
+                    Appraisal Received
+                  </CardTitle>
+                  <CardDescription>
+                    Your property appraisal has been completed and received.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Great news! The appraisal for your property has been received and the value has been confirmed. 
+                      Our underwriting team is now reviewing the appraisal along with your complete loan file.
+                    </p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <p className="text-sm font-medium text-blue-900 mb-2">What happens next?</p>
+                      <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                        <li>Underwriting will review the appraisal and your complete loan file</li>
+                        <li>If approved, you'll receive conditional approval</li>
+                        <li>You'll be notified via email when your loan moves to the next stage</li>
+                      </ul>
+                    </div>
+                    <p className="text-xs text-muted-foreground italic">
+                      Typical review time: 2-3 business days. We'll notify you as soon as there's an update.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Appraisal Received - Operations Guidance */}
+            {loan.status === "appraisal_received" && isOpsView && (
+              <Card className="border-purple-500/50 bg-purple-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-purple-600">
+                    <Building2 className="w-5 h-5" />
+                    Appraisal Received - Ready for Conditional Approval
+                  </CardTitle>
+                  <CardDescription>
+                    Appraisal has been received. Review and update status when ready to proceed.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      The appraisal has been received for this loan. Review the appraisal and complete loan file, then update the status to proceed:
+                    </p>
+                    <div className="space-y-2">
+                      <Button
+                        variant="default"
+                        onClick={async () => {
+                          try {
+                            await opsApi.updateStatus(loanId!, "conditionally_approved", "Appraisal reviewed, loan conditionally approved");
+                            toast.success("Status updated to Conditionally Approved");
+                            await loadLoanData();
+                          } catch (error: any) {
+                            toast.error(error.message || "Failed to update status");
+                          }
+                        }}
+                        disabled={isProcessing}
+                        className="w-full"
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        {isProcessing ? "Updating..." : "Approve Conditionally (Next Step)"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground text-center">
+                        This will move the loan to "Conditionally Approved" status, allowing you to upload the commitment letter.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Commitment Letter Upload for Operations - when conditionally approved */}
             {loan.status === "conditionally_approved" && isOpsView && (
               <Card className="border-orange-500/50 bg-orange-500/5">

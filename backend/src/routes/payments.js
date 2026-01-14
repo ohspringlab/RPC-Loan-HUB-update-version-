@@ -71,17 +71,31 @@ router.post('/appraisal-intent', authenticate, async (req, res, next) => {
           const columnCheck = await db.query(`
             SELECT column_name 
             FROM information_schema.columns 
-            WHERE table_name = 'payments' 
+            WHERE table_schema = 'public' 
+            AND table_name = 'payments' 
             AND column_name IN ('user_id', 'payment_type', 'stripe_payment_intent', 'client_id', 'type')
           `);
-          const columnNames = columnCheck.rows.map(row => row.column_name);
+          const columnNames = columnCheck.rows.map(row => row.column_name.toLowerCase());
           hasUserIdColumn = columnNames.includes('user_id');
           hasPaymentTypeColumn = columnNames.includes('payment_type');
           hasStripePaymentIntentColumn = columnNames.includes('stripe_payment_intent');
           hasClientIdColumn = columnNames.includes('client_id');
           hasTypeColumn = columnNames.includes('type');
+          
+          // Log for debugging
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[Appraisal Payment] Column check results:', {
+              hasUserIdColumn,
+              hasPaymentTypeColumn,
+              hasStripePaymentIntentColumn,
+              hasClientIdColumn,
+              hasTypeColumn,
+              availableColumns: columnNames
+            });
+          }
         } catch (error) {
-          console.warn('Error checking for columns:', error);
+          console.error('Error checking for columns:', error);
+          // Don't fail completely, just log the error
         }
 
         // Build INSERT statement dynamically based on available columns
@@ -147,10 +161,21 @@ router.post('/appraisal-intent', authenticate, async (req, res, next) => {
         }
 
         // Record pending payment
-        await db.query(`
-          INSERT INTO payments (${columns.join(', ')})
-          VALUES (${placeholders.join(', ')})
-        `, values);
+        try {
+          await db.query(`
+            INSERT INTO payments (${columns.join(', ')})
+            VALUES (${placeholders.join(', ')})
+          `, values);
+        } catch (insertError) {
+          console.error('[Appraisal Payment] INSERT error:', insertError.message);
+          console.error('[Appraisal Payment] Columns being inserted:', columns);
+          console.error('[Appraisal Payment] Values:', values);
+          // If the error is about a missing column, provide a helpful message
+          if (insertError.message.includes('does not exist')) {
+            throw new Error(`Database schema mismatch: ${insertError.message}. Please run migrations to update the payments table.`);
+          }
+          throw insertError;
+        }
 
         res.json({
           clientSecret: paymentIntent.client_secret,
@@ -177,10 +202,11 @@ router.post('/appraisal-intent', authenticate, async (req, res, next) => {
       const columnCheck = await db.query(`
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = 'payments' 
+        WHERE table_schema = 'public' 
+        AND table_name = 'payments' 
         AND column_name IN ('user_id', 'payment_type', 'stripe_payment_intent', 'client_id', 'type')
       `);
-      const columnNames = columnCheck.rows.map(row => row.column_name);
+      const columnNames = columnCheck.rows.map(row => row.column_name.toLowerCase());
       hasUserIdColumn = columnNames.includes('user_id');
       hasPaymentTypeColumn = columnNames.includes('payment_type');
       hasStripePaymentIntentColumn = columnNames.includes('stripe_payment_intent');
@@ -252,10 +278,21 @@ router.post('/appraisal-intent', authenticate, async (req, res, next) => {
       placeholders.push(`$${++paramIndex}`);
     }
 
-    await db.query(`
-      INSERT INTO payments (${columns.join(', ')})
-      VALUES (${placeholders.join(', ')})
-    `, values);
+    try {
+      await db.query(`
+        INSERT INTO payments (${columns.join(', ')})
+        VALUES (${placeholders.join(', ')})
+      `, values);
+    } catch (insertError) {
+      console.error('[Appraisal Payment - Mock] INSERT error:', insertError.message);
+      console.error('[Appraisal Payment - Mock] Columns being inserted:', columns);
+      console.error('[Appraisal Payment - Mock] Values:', values);
+      // If the error is about a missing column, provide a helpful message
+      if (insertError.message.includes('does not exist')) {
+        throw new Error(`Database schema mismatch: ${insertError.message}. Please run migrations to update the payments table.`);
+      }
+      throw insertError;
+    }
 
     res.json({
       clientSecret: `mock_secret_${mockIntentId}`,
@@ -272,11 +309,57 @@ router.post('/confirm', authenticate, async (req, res, next) => {
   try {
     const { loanId, paymentIntentId } = req.body;
 
+    // Check if columns exist
+    let hasStripePaymentIntentColumn = false;
+    let hasStripePaymentIdColumn = false;
+    let hasPaidAtColumn = false;
+    try {
+      const columnCheck = await db.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'payments' 
+        AND column_name IN ('stripe_payment_intent', 'stripe_payment_id', 'paid_at')
+      `);
+      const columnNames = columnCheck.rows.map(row => row.column_name.toLowerCase());
+      hasStripePaymentIntentColumn = columnNames.includes('stripe_payment_intent');
+      hasStripePaymentIdColumn = columnNames.includes('stripe_payment_id');
+      hasPaidAtColumn = columnNames.includes('paid_at');
+    } catch (error) {
+      console.warn('Error checking for columns:', error);
+    }
+
+    // Build WHERE clause dynamically
+    let whereClause = 'loan_id = $1';
+    let whereParams = [loanId];
+    let paramIndex = 1;
+
+    if (hasStripePaymentIntentColumn) {
+      whereClause += ` AND stripe_payment_intent = $${++paramIndex}`;
+      whereParams.push(paymentIntentId);
+    } else if (hasStripePaymentIdColumn) {
+      whereClause += ` AND stripe_payment_id = $${++paramIndex}`;
+      whereParams.push(paymentIntentId);
+    } else {
+      // Fallback: use paymentIntentId as a general identifier if neither column exists
+      // This shouldn't happen in normal operation, but handle gracefully
+      whereClause += ` AND id::text = $${++paramIndex}`;
+      whereParams.push(paymentIntentId);
+    }
+
+    // Build SET clause dynamically based on available columns
+    let setClause = 'status = $' + (whereParams.length + 1);
+    whereParams.push('completed');
+    
+    if (hasPaidAtColumn) {
+      setClause += ', paid_at = NOW()';
+    }
+
     // Update payment status
     await db.query(`
-      UPDATE payments SET status = 'completed', paid_at = NOW()
-      WHERE loan_id = $1 AND stripe_payment_intent = $2
-    `, [loanId, paymentIntentId]);
+      UPDATE payments SET ${setClause}
+      WHERE ${whereClause}
+    `, whereParams);
 
     // Update loan
     await db.query(`
@@ -323,10 +406,50 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     const paymentIntent = event.data.object;
     const { loanId } = paymentIntent.metadata;
 
+    // Check if columns exist
+    let hasStripePaymentIntentColumn = false;
+    let hasStripePaymentIdColumn = false;
+    let hasPaidAtColumn = false;
+    try {
+      const columnCheck = await db.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'payments' 
+        AND column_name IN ('stripe_payment_intent', 'stripe_payment_id', 'paid_at')
+      `);
+      const columnNames = columnCheck.rows.map(row => row.column_name.toLowerCase());
+      hasStripePaymentIntentColumn = columnNames.includes('stripe_payment_intent');
+      hasStripePaymentIdColumn = columnNames.includes('stripe_payment_id');
+      hasPaidAtColumn = columnNames.includes('paid_at');
+    } catch (error) {
+      console.warn('Error checking for columns in webhook:', error);
+    }
+
+    // Build WHERE clause dynamically
+    let whereClause;
+    if (hasStripePaymentIntentColumn) {
+      whereClause = 'stripe_payment_intent = $1';
+    } else if (hasStripePaymentIdColumn) {
+      whereClause = 'stripe_payment_id = $1';
+    } else {
+      // Fallback: skip this update if neither column exists
+      console.warn('Cannot update payment: neither stripe_payment_intent nor stripe_payment_id column exists');
+      return res.json({ received: true });
+    }
+
+    // Build SET clause dynamically based on available columns
+    let setClause = 'status = $2';
+    const updateParams = [paymentIntent.id, 'completed'];
+    
+    if (hasPaidAtColumn) {
+      setClause += ', paid_at = NOW()';
+    }
+
     await db.query(`
-      UPDATE payments SET status = 'completed', paid_at = NOW()
-      WHERE stripe_payment_intent = $1
-    `, [paymentIntent.id]);
+      UPDATE payments SET ${setClause}
+      WHERE ${whereClause}
+    `, updateParams);
 
     await db.query(`
       UPDATE loan_requests SET
