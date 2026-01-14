@@ -259,8 +259,14 @@ export default function LoanDetail() {
                 )}
               </Card>
             )}
+            
             {/* Show action card for soft_quote_issued status - allow signing term sheet */}
-            {loan.status === "soft_quote_issued" && !loan.term_sheet_signed && (
+            {/* More flexible condition: check status OR if quote is generated but not signed */}
+            {((loan.status === "soft_quote_issued" || 
+               loan.status === "soft_quote" || 
+               (loan.soft_quote_generated && !loan.term_sheet_signed)) && 
+               !loan.term_sheet_signed && 
+               !isOpsView) && (
               <Card className="border-cyan-500/50 bg-cyan-500/5 shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-cyan-700">
@@ -332,6 +338,136 @@ export default function LoanDetail() {
                   <p className="text-xs text-muted-foreground text-center pt-2">
                     By signing, you agree to proceed with the loan application process
                   </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Show document upload section if term sheet is signed but status hasn't updated yet */}
+            {loan.term_sheet_signed && loan.status !== "needs_list_sent" && loan.status !== "needs_list_complete" && (
+              <Card className="border-green-500/50 bg-green-500/5 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-green-700">
+                    <CheckCircle2 className="w-5 h-5" />
+                    Term Sheet Signed - Upload Documents
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Your term sheet has been signed! Please upload the required documents below to continue with your loan application.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {needsList.length === 0 ? (
+                    <div className="p-4 bg-white rounded-lg border space-y-3">
+                      <p className="text-muted-foreground">Your needs list is being prepared. You will receive an email shortly with the required documents.</p>
+                      <p className="text-sm text-muted-foreground">Please check your email or refresh this page in a few moments.</p>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          onClick={async () => {
+                            setIsProcessing(true);
+                            try {
+                              await loadLoanData();
+                              toast.success("Page refreshed. If needs list is still empty, the backend may need to be restarted.");
+                            } catch (error: any) {
+                              toast.error("Failed to refresh");
+                            } finally {
+                              setIsProcessing(false);
+                            }
+                          }}
+                          disabled={isProcessing}
+                          className="flex-1"
+                        >
+                          {isProcessing ? "Refreshing..." : "Refresh Page"}
+                        </Button>
+                        {import.meta.env.DEV && (
+                          <Button 
+                            variant="default"
+                            onClick={async () => {
+                              setIsProcessing(true);
+                              try {
+                                // Try to trigger needs list generation by calling sign-term-sheet again
+                                // This will check if needs list exists and generate it if not
+                                await loansApi.signTermSheet(loanId!);
+                                toast.success("Needs list generation triggered. Refreshing...");
+                                await loadLoanData();
+                              } catch (error: any) {
+                                toast.error(error.message || "Failed to generate needs list");
+                              } finally {
+                                setIsProcessing(false);
+                              }
+                            }}
+                            disabled={isProcessing}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700"
+                          >
+                            {isProcessing ? "Generating..." : "Generate Needs List"}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {needsList.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between p-3 bg-white border rounded-lg">
+                          <div className="flex-1">
+                            <p className="font-medium">{item.document_type}</p>
+                            <p className="text-sm text-muted-foreground">{item.description}</p>
+                            {item.document_count > 0 && (
+                              <p className="text-xs text-green-600 mt-1">
+                                {item.document_count} file(s) uploaded
+                              </p>
+                            )}
+                          </div>
+                          <label>
+                            <input
+                              type="file"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file && loanId) {
+                                  try {
+                                    await documentsApi.upload(loanId, file, item.id);
+                                    toast.success("Document uploaded successfully");
+                                    await loadLoanData();
+                                  } catch (error: any) {
+                                    toast.error(error.message || "Upload failed");
+                                  }
+                                }
+                              }}
+                            />
+                            <Button variant="outline" size="sm" asChild>
+                              <span>
+                                <Upload className="w-4 h-4 mr-2" /> Upload
+                              </span>
+                            </Button>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Debug card - Show loan status info in development mode */}
+            {import.meta.env.DEV && (
+              <Card className="border-gray-300 bg-gray-50">
+                <CardHeader>
+                  <CardTitle className="text-sm">🔍 Debug Info (Development Only)</CardTitle>
+                </CardHeader>
+                <CardContent className="text-xs space-y-1 font-mono">
+                  <p><strong>Status:</strong> <span className="text-blue-600">{loan.status}</span></p>
+                  <p><strong>Soft Quote Generated:</strong> {loan.soft_quote_generated ? '✅ Yes' : '❌ No'}</p>
+                  <p><strong>Term Sheet Signed:</strong> {loan.term_sheet_signed ? '✅ Yes' : '❌ No'}</p>
+                  <p><strong>Has Quote Data:</strong> {loan.soft_quote_data ? '✅ Yes' : '❌ No'}</p>
+                  <p><strong>Term Sheet URL:</strong> {loan.term_sheet_url ? '✅ Yes' : '❌ No'}</p>
+                  <p><strong>Current Step:</strong> {loan.current_step || 'N/A'}</p>
+                  <p><strong>Is Ops View:</strong> {isOpsView ? '✅ Yes' : '❌ No'}</p>
+                  <p><strong>Should Show Sign Card:</strong> {
+                    ((loan.status === "soft_quote_issued" || 
+                      loan.status === "soft_quote" || 
+                      (loan.soft_quote_generated && !loan.term_sheet_signed)) && 
+                      !loan.term_sheet_signed && 
+                      !isOpsView) ? '✅ YES' : '❌ NO'
+                  }</p>
                 </CardContent>
               </Card>
             )}

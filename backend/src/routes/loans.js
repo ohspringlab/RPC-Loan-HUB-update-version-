@@ -489,17 +489,38 @@ router.post('/:id/sign-term-sheet', authenticate, async (req, res, next) => {
       VALUES ($1, $2, 'term_sheet_signed', 5, $3, 'Term sheet signed by borrower')
     `, [statusHistoryId4, req.params.id, req.user.id]);
 
-    // Send needs list email
+    // Get loan and user data
     const loan = await db.query('SELECT * FROM loan_requests WHERE id = $1', [req.params.id]);
     const user = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
-    const needsList = await db.query('SELECT * FROM needs_list_items WHERE loan_id = $1', [req.params.id]);
     
+    // Check if needs list exists, if not generate it
+    let needsList = await db.query('SELECT * FROM needs_list_items WHERE loan_id = $1', [req.params.id]);
+    
+    if (needsList.rows.length === 0) {
+      // Generate needs list if it doesn't exist
+      await generateInitialNeedsListForLoan(req.params.id, loan.rows[0]);
+      // Fetch the newly created needs list
+      needsList = await db.query('SELECT * FROM needs_list_items WHERE loan_id = $1', [req.params.id]);
+    }
+    
+    // Send needs list email
     await sendNeedsListEmail(user.rows[0], loan.rows[0], needsList.rows);
 
     // Update status to needs list sent
     await db.query(`
-      UPDATE loan_requests SET status = 'needs_list_sent' WHERE id = $1
+      UPDATE loan_requests SET 
+        status = 'needs_list_sent',
+        current_step = GREATEST(current_step, 6),
+        updated_at = NOW()
+      WHERE id = $1
     `, [req.params.id]);
+    
+    // Add status history
+    const statusHistoryId5 = require('uuid').v4();
+    await db.query(`
+      INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
+      VALUES ($1, $2, 'needs_list_sent', 6, $3, 'Needs list sent to borrower after term sheet signing')
+    `, [statusHistoryId5, req.params.id, req.user.id]);
 
     res.json({ message: 'Term sheet signed successfully' });
   } catch (error) {
@@ -587,12 +608,83 @@ async function createDocumentFoldersForLoan(loanId) {
   ];
 
   // Create a placeholder needs_list_item for each folder to make it appear in the UI
+  // Check which optional columns exist
+  // Default category and loan_type to true since errors indicate they're required
+  let hasNameColumn = false;
+  let hasCategoryColumn = true; // Default to true - error says it's required
+  let hasLoanTypeColumn = true; // Default to true - error says it's required
+  
+  try {
+    const columns = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'needs_list_items' 
+      AND column_name IN ('name', 'category', 'loan_type')
+    `);
+    const columnNames = columns.rows.map(row => row.column_name);
+    hasNameColumn = columnNames.includes('name');
+    hasCategoryColumn = columnNames.includes('category');
+    hasLoanTypeColumn = columnNames.includes('loan_type');
+  } catch (error) {
+    console.error('[createDocumentFoldersForLoan] Error checking columns:', error);
+    // If check fails, assume category and loan_type are required (based on error message)
+    hasCategoryColumn = true;
+    hasLoanTypeColumn = true;
+  }
+
+  // Get loan to determine loan_type
+  const loanResult = await db.query('SELECT transaction_type, loan_product FROM loan_requests WHERE id = $1', [loanId]);
+  const loanType = loanResult.rows[0]?.transaction_type || loanResult.rows[0]?.loan_product || 'general';
+
   for (const folder of folders) {
-    await db.query(`
-      INSERT INTO needs_list_items (loan_id, document_type, folder_name, description, status, required)
-      VALUES ($1, $2, $3, $4, 'pending', false)
-      ON CONFLICT DO NOTHING
-    `, [loanId, `Folder: ${folder.name}`, folder.name, folder.description]);
+    // Determine category based on folder name
+    let category = 'general';
+    if (folder.name.includes('income') || folder.name.includes('tax') || folder.name.includes('bank')) {
+      category = 'financial';
+    } else if (folder.name.includes('property') || folder.name.includes('lease') || folder.name.includes('rent')) {
+      category = 'property';
+    } else if (folder.name.includes('identification') || folder.name.includes('entity')) {
+      category = 'identity';
+    }
+
+    // Build INSERT statement dynamically to include all required columns
+    try {
+      const columns = ['loan_id'];
+      const values = [loanId];
+      const placeholders = ['$1'];
+      let paramIndex = 1;
+
+      if (hasNameColumn) {
+        columns.push('name');
+        values.push(folder.name);
+        placeholders.push(`$${++paramIndex}`);
+      }
+      if (hasCategoryColumn) {
+        columns.push('category');
+        values.push(category);
+        placeholders.push(`$${++paramIndex}`);
+      }
+      if (hasLoanTypeColumn) {
+        columns.push('loan_type');
+        values.push(loanType);
+        placeholders.push(`$${++paramIndex}`);
+      }
+      
+      columns.push('document_type', 'folder_name', 'description', 'status', 'required');
+      values.push(`Folder: ${folder.name}`, folder.name, folder.description, 'pending', false);
+      placeholders.push(`$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`);
+
+      const query = `
+        INSERT INTO needs_list_items (${columns.join(', ')})
+        VALUES (${placeholders.join(', ')})
+        ON CONFLICT DO NOTHING
+      `;
+      
+      await db.query(query, values);
+    } catch (insertError) {
+      console.error('[createDocumentFoldersForLoan] Insert error for folder:', folder.name, insertError.message);
+      throw insertError;
+    }
   }
 }
 
@@ -600,12 +692,98 @@ async function createDocumentFoldersForLoan(loanId) {
 async function generateInitialNeedsListForLoan(loanId, loan) {
   const items = getInitialNeedsList(loan);
 
+  // Check which optional columns exist in the table
+  // Since error indicates category and loan_type are required, default to true
+  let hasNameColumn = false;
+  let hasCategoryColumn = true; // Default to true since error says it's required
+  let hasLoanTypeColumn = true; // Default to true since error says it's required
+  
+  try {
+    const columns = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'needs_list_items' 
+      AND column_name IN ('name', 'category', 'loan_type')
+    `);
+    const columnNames = columns.rows.map(row => row.column_name);
+    hasNameColumn = columnNames.includes('name');
+    hasCategoryColumn = columnNames.includes('category');
+    hasLoanTypeColumn = columnNames.includes('loan_type');
+    console.log('[generateInitialNeedsListForLoan] Column check:', { hasNameColumn, hasCategoryColumn, hasLoanTypeColumn, columns: columnNames });
+  } catch (error) {
+    console.error('[generateInitialNeedsListForLoan] Error checking columns:', error);
+    // If check fails, assume category and loan_type are required (based on error message)
+    hasCategoryColumn = true;
+    hasLoanTypeColumn = true;
+  }
+
+  // Determine loan_type from loan data
+  const loanType = loan.transaction_type || loan.loan_product || 'general';
+
   for (const item of items) {
-    await db.query(`
-      INSERT INTO needs_list_items (loan_id, document_type, folder_name, description, status, required)
-      VALUES ($1, $2, $3, $4, 'pending', $5)
-      ON CONFLICT DO NOTHING
-    `, [loanId, item.type, item.folder, item.description, item.required]);
+    // Determine category based on folder/document type
+    let category = 'general';
+    if (item.folder.includes('income') || item.folder.includes('tax') || item.folder.includes('bank')) {
+      category = 'financial';
+    } else if (item.folder.includes('property') || item.folder.includes('lease') || item.folder.includes('rent')) {
+      category = 'property';
+    } else if (item.folder.includes('identification') || item.folder.includes('entity')) {
+      category = 'identity';
+    } else if (item.folder.includes('construction') || item.folder.includes('contract')) {
+      category = 'construction';
+    }
+
+    // Build INSERT statement - always include category and loan_type since errors indicate they're required
+    try {
+      // Build column list and values dynamically based on what exists
+      const columns = ['loan_id'];
+      const values = [loanId];
+      const placeholders = ['$1'];
+      let paramIndex = 1;
+
+      if (hasNameColumn) {
+        columns.push('name');
+        values.push(item.type);
+        placeholders.push(`$${++paramIndex}`);
+      }
+      if (hasCategoryColumn) {
+        columns.push('category');
+        values.push(category);
+        placeholders.push(`$${++paramIndex}`);
+      }
+      if (hasLoanTypeColumn) {
+        columns.push('loan_type');
+        values.push(loanType);
+        placeholders.push(`$${++paramIndex}`);
+      }
+      
+      columns.push('document_type', 'folder_name', 'description', 'status', 'required');
+      values.push(item.type, item.folder, item.description, 'pending', item.required);
+      placeholders.push(`$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`);
+
+      const query = `
+        INSERT INTO needs_list_items (${columns.join(', ')})
+        VALUES (${placeholders.join(', ')})
+        ON CONFLICT DO NOTHING
+      `;
+      
+      console.log('[generateInitialNeedsListForLoan] Insert query:', query);
+      console.log('[generateInitialNeedsListForLoan] Values count:', values.length, 'Placeholders count:', placeholders.length);
+      
+      await db.query(query, values);
+    } catch (insertError) {
+      console.error('[generateInitialNeedsListForLoan] Insert error for item:', item.type, insertError.message);
+      // If insert fails and it's a category error, try with category
+      if (insertError.message.includes('category') && !hasCategoryColumn) {
+        await db.query(`
+          INSERT INTO needs_list_items (loan_id, category, document_type, folder_name, description, status, required)
+          VALUES ($1, $2, $3, $4, $5, 'pending', $6)
+          ON CONFLICT DO NOTHING
+        `, [loanId, category, item.type, item.folder, item.description, item.required]);
+      } else {
+        throw insertError;
+      }
+    }
   }
 }
 
