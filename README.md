@@ -1,252 +1,174 @@
-# RPC Lending Portal - Full Stack Application
+# RPC Loan Hub - Loan Management System
 
-A comprehensive fintech lending platform for Riverside Park Capital (RPC) that enables borrowers to submit loan requests, track applications, and manage documents through a guided, TurboTax-style experience.
+A comprehensive loan management platform for processing and tracking loan applications from submission to closing.
 
 ## 🚀 Features
 
-### Borrower Portal
-- **Registration & Authentication**: Secure account creation with email verification
-- **Loan Request Workflow**: Step-by-step guided loan application
-  - Property type selection (Residential 1-4 units or Commercial)
-  - Portfolio refinance support (multiple properties)
-  - DSCR calculation with auto-decline rules
-  - Documentation type selection
-- **Credit Authorization**: Digital consent for soft credit pull
-- **Soft Quote Generation**: Automated rate range based on credit score and DSCR
-- **Term Sheet**: Auto-generated PDF with loan terms
-- **Document Management**: 
-  - Color-coded folder system (Tan → Blue → Red)
-  - Automatic folder organization
-  - Upload notifications to operations team
-- **Loan Tracker**: 17-stage visual progress indicator
-- **Payment Processing**: Appraisal payment integration (Stripe-ready)
-- **Full Application**: Complete loan application with PDF export
+- **Borrower Portal**: Submit loan requests, track progress, upload documents
+- **Operations Dashboard**: Manage loan pipeline, approve quotes, update statuses
+- **Admin Dashboard**: View metrics, recent closings, and system overview
+- **Document Management**: Secure file uploads and needs list tracking
+- **Status Tracking**: Real-time loan progress tracking with visual indicators
+- **Quote Generation**: Automated soft quote generation with term sheets
+- **Email Notifications**: Automated email notifications for key milestones
 
-### Operations Portal
-- **Pipeline Management**: View all loans with filtering and search
-- **Status Updates**: Dropdown-based status progression
-- **Document Review**: Review and approve/reject uploaded documents
-- **CRM Integration**: Borrower search and profile management
-- **Processor Assignment**: Assign loans to team members
-- **Notifications**: Real-time alerts for document uploads and status changes
+## 📋 Prerequisites
 
-## 📋 Loan Products Supported
+- Node.js (v18 or higher)
+- PostgreSQL (v12 or higher)
+- npm or yarn
 
-### Residential (1-4 Units)
-- DSCR / Investor Rental Loans (Purchase & Refinance)
-- Portfolio Refinance (Multiple Properties)
-- Fix & Flip / Value-Add Bridge
-- Ground-Up Construction
-- Investment HELOC (up to 90% LTV)
+## 🔧 Installation
 
-### Commercial (5+ Units)
-- Multifamily Bridge Loans
-- Value-Add / Renovation Loans
-- Cash-Out Refinance
-- Permanent Financing
+### 1. Clone the repository
 
-### Documentation Types
-- Full Documentation
-- Light Doc (No Tax Returns)
-- Bank Statement Program
-- Streamline No-Doc (DSCR-based)
+```bash
+git clone <your-repo-url>
+cd __rpc-loan-hub
+```
 
-## 🏗️ Tech Stack
-
-### Backend
-- **Node.js** with Express
-- **PostgreSQL** database
-- **JWT** authentication
-- **Stripe** payment processing (ready)
-- **HubSpot** CRM integration (ready)
-- **PDFKit** for document generation
-- **Multer** for file uploads
-
-### Frontend
-- **React** with TypeScript
-- **Vite** build tool
-- **shadcn/ui** component library
-- **Tailwind CSS** styling
-- **React Router** for navigation
-- **React Query** for data fetching
-- **Sonner** for toast notifications
-
-## 📦 Installation
-
-### Prerequisites
-- Node.js 18+ and npm
-- PostgreSQL 12+
-- (Optional) Stripe account for payments
-- (Optional) HubSpot account for CRM
-
-### Backend Setup
+### 2. Backend Setup
 
 ```bash
 cd backend
-
-# Install dependencies
 npm install
-
-# Create .env file (copy from .env.example)
-cp .env.example .env
-# Edit .env with your database credentials
-
-# Run database migrations
-npm run db:migrate
-
-# (Optional) Seed demo data
-npm run db:seed
-
-# Start development server
-npm run dev
 ```
 
-Backend will run on `http://localhost:3001`
+Create a `.env` file in the `backend` directory:
 
-### Frontend Setup
+```env
+DATABASE_URL=postgresql://username:password@localhost:5432/rpc_loan_hub
+PORT=3001
+NODE_ENV=development
+FRONTEND_URL=http://localhost:8080
+ALLOW_ALL_ORIGINS=true
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+ADMIN_EMAIL=admin@rpc-lending.com
+ADMIN_PASSWORD=admin123456
+```
+
+### 3. Database Setup
 
 ```bash
-cd frontend
+# Run migrations
+node src/db/migrate.js
 
-# Install dependencies
+# Seed database with demo data (optional)
+node src/db/seed.js
+```
+
+### 4. Frontend Setup
+
+```bash
+cd ../frontend
 npm install
+```
 
-# Create .env file
-cp .env.example .env
-# Edit .env with your API URL
+Create a `.env` file in the `frontend` directory:
 
-# Start development server
+```env
+VITE_API_URL=http://localhost:3001/api
+```
+
+### 5. Start Development Servers
+
+**Backend:**
+```bash
+cd backend
 npm run dev
 ```
 
-Frontend will run on `http://localhost:5173`
+**Frontend:**
+```bash
+cd frontend
+npm run dev
+```
 
-## 🔐 Demo Accounts
+## 🔐 Default Login Credentials
 
-After seeding the database:
+**⚠️ IMPORTANT: Change these credentials in production!**
 
-- **Borrower**: `demo@example.com` / `demo123456`
+- **Admin**: `admin@rpc-lending.com` / `admin123456`
 - **Operations**: `ops@rpc-lending.com` / `ops123456`
+- **Borrower**: `demo@example.com` / `demo123456`
 
-## 📊 Loan Status Flow
-
-The platform tracks loans through 17 stages:
-
-1. **New Request** - Initial loan request created
-2. **Quote Requested** - Borrower submitted for quote
-3. **Soft Quote Issued** - Rate range generated
-4. **Term Sheet Issued** - PDF term sheet available
-5. **Term Sheet Signed** - Borrower accepted terms
-6. **Needs List Sent** - Document checklist sent
-7. **Needs List Complete** - All required docs uploaded
-8. **Submitted to Underwriting** - File in review
-9. **Appraisal Ordered** - Appraisal in progress
-10. **Appraisal Received** - Value confirmed
-11. **Conditionally Approved** - Conditions issued
-12. **Conditional Items Needed** - Additional docs required
-13. **Conditional Commitment Issued** - Commitment letter ready
-14. **Clear to Close** - All conditions satisfied
-15. **Closing Scheduled** - Closing date set
-16. **Funded** - Loan complete
-
-## 💰 DSCR Calculation
-
-Debt Service Coverage Ratio (DSCR) is automatically calculated:
+## 📁 Project Structure
 
 ```
-DSCR = NOI / Annual Debt Service
-NOI = Annual Rental Income - Annual Operating Expenses
-
-Example:
-- Annual rental income: $120,000
-- Annual operating expenses: $40,000
-- NOI: $80,000
-- Annual loan payments: $65,000
-- DSCR = $80,000 ÷ $65,000 = 1.23x
+__rpc-loan-hub/
+├── backend/
+│   ├── src/
+│   │   ├── routes/        # API routes
+│   │   ├── middleware/    # Auth & error handling
+│   │   ├── services/      # Business logic
+│   │   ├── db/            # Database migrations & seeds
+│   │   └── server.js      # Express server
+│   └── uploads/           # File uploads directory
+├── frontend/
+│   ├── src/
+│   │   ├── pages/         # React pages
+│   │   ├── components/    # Reusable components
+│   │   ├── contexts/      # React contexts
+│   │   └── lib/           # API client & utilities
+│   └── public/            # Static assets
+└── README.md
 ```
 
-**Auto-Decline Rule**: Loans with DSCR < 1.0x are automatically declined unless using Light Doc, Bank Statement, or No-Doc programs.
+## 🔒 Security Notes
 
-## 📁 Document Folder System
+- **Never commit `.env` files** - They contain sensitive credentials
+- **Change default passwords** before deploying to production
+- **Use strong JWT secrets** in production
+- **Enable HTTPS** in production
+- **Review CORS settings** for production deployment
 
-Documents are organized into folders with color-coded status:
+## 🛠️ Available Scripts
 
-- **Tan/Beige**: No documents uploaded (pending)
-- **Blue**: Has documents uploaded
-- **Red**: New upload in last 24 hours (requires attention)
+### Backend
+- `npm run dev` - Start development server with nodemon
+- `npm start` - Start production server
+- `node src/db/migrate.js` - Run database migrations
+- `node src/db/seed.js` - Seed database with demo data
 
-Operations team receives email notifications when documents are uploaded.
+### Frontend
+- `npm run dev` - Start Vite development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
 
-## 🔗 API Documentation
+## 📝 API Endpoints
 
-See `backend/README.md` for complete API endpoint documentation.
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login user
+- `POST /api/auth/verify-email` - Verify email address
 
-## 🔒 Security Features
+### Loans
+- `GET /api/loans` - List user's loans
+- `POST /api/loans` - Create new loan request
+- `GET /api/loans/:id` - Get loan details
+- `POST /api/loans/:id/submit` - Submit loan request
 
-- JWT authentication with role-based access control
-- Password hashing (bcrypt, 12 rounds)
-- Credit authorization with IP/timestamp logging
-- Complete audit trail for all sensitive actions
-- Input validation (express-validator)
-- CORS configuration
-- Helmet security headers
-- Encrypted file storage
-
-## 📧 Email Integration
-
-The platform integrates with HubSpot for:
-- Welcome emails on registration
-- Needs list emails with upload links
-- Document upload notifications to operations
-- Soft quote notifications
-- Status update notifications
-
-Email queue system ensures reliable delivery.
+### Operations
+- `GET /api/operations/pipeline` - Get loan pipeline
+- `GET /api/operations/stats` - Get pipeline statistics
+- `POST /api/operations/loan/:id/approve-quote` - Approve quote request
 
 ## 🚢 Deployment
 
-### Backend
-1. Set up PostgreSQL database
-2. Configure environment variables
-3. Run migrations: `npm run db:migrate`
-4. Deploy to your Node.js hosting (Heroku, AWS, etc.)
-
-### Frontend
-1. Build: `npm run build`
-2. Deploy to static hosting (Vercel, Netlify, AWS S3, etc.)
-3. Configure API URL in environment variables
-
-## 📝 Development Notes
-
-### Adding New Loan Products
-1. Update `backend/src/services/quoteService.js` with pricing logic
-2. Add transaction type to frontend form
-3. Update needs list generator for product-specific documents
-
-### Customizing Email Templates
-Edit `backend/src/services/emailService.js` to customize email content and integrate with your email provider.
-
-### Adding Payment Methods
-The Stripe integration is ready. Update `backend/src/routes/payments.js` to add additional payment types.
-
-## 🤝 Contributing
-
-This is a production-ready application. When making changes:
-
-1. Update database migrations if schema changes
-2. Add audit logging for sensitive operations
-3. Update API documentation
-4. Test all user flows
+1. Set environment variables in your hosting platform
+2. Run database migrations on production database
+3. Build frontend: `cd frontend && npm run build`
+4. Serve frontend build files
+5. Start backend server with PM2 or similar process manager
 
 ## 📄 License
 
-Proprietary - Riverside Park Capital
+[Your License Here]
 
-## 🆘 Support
+## 👥 Contributors
 
-For technical issues or questions, contact the development team.
+[Your Name/Team]
 
----
+## 📧 Support
 
-**Built with ❤️ for Riverside Park Capital**
-
+For support, email support@rpc-lending.com or open an issue in the repository.

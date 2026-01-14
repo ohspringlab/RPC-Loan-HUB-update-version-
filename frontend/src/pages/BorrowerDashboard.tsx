@@ -265,6 +265,32 @@ export default function BorrowerDashboard() {
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-lg font-semibold">Active Loans</h2>
                     </div>
+                    {loans.filter(l => l.status === 'soft_quote_issued' && !l.term_sheet_signed).length > 0 && (
+                      <Card className="mb-4 border-cyan-500 bg-cyan-50">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-semibold text-cyan-900">Action Required</p>
+                              <p className="text-sm text-cyan-700">
+                                You have {loans.filter(l => l.status === 'soft_quote_issued' && !l.term_sheet_signed).length} loan(s) with approved quotes ready to sign
+                              </p>
+                            </div>
+                            <Button 
+                              variant="default" 
+                              className="bg-cyan-600 hover:bg-cyan-700"
+                              onClick={() => {
+                                const loanToSign = loans.find(l => l.status === 'soft_quote_issued' && !l.term_sheet_signed);
+                                if (loanToSign) {
+                                  navigate(`/dashboard/loans/${loanToSign.id}`);
+                                }
+                              }}
+                            >
+                              Sign Term Sheet
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
                     <div className="grid gap-4">
                       {loans.map((loan) => (
                         <LoanCard 

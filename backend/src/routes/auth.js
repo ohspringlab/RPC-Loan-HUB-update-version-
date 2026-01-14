@@ -236,12 +236,19 @@ router.post('/login', loginValidation, async (req, res, next) => {
 
     const { email, password } = req.body;
 
+    // Normalize email (same as validation)
+    const normalizedEmail = email.toLowerCase().trim();
+
     const result = await db.query(`
-      SELECT id, email, password_hash, full_name, phone, role, is_active
-      FROM users WHERE email = $1
-    `, [email]);
+      SELECT id, email, password_hash, full_name, phone, role, is_active, email_verified
+      FROM users WHERE LOWER(TRIM(email)) = $1
+    `, [normalizedEmail]);
 
     if (result.rows.length === 0) {
+      // Log for debugging (only in development)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[Login] User not found: ${normalizedEmail}`);
+      }
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -253,6 +260,10 @@ router.post('/login', loginValidation, async (req, res, next) => {
 
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
+      // Log for debugging (only in development)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[Login] Invalid password for: ${user.email}`);
+      }
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 

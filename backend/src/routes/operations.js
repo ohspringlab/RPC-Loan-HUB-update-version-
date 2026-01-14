@@ -49,8 +49,8 @@ router.get('/pipeline', async (req, res, next) => {
              p.full_name as processor_name,
              (SELECT COUNT(*) FROM documents d WHERE d.loan_id = lr.id) as document_count,
              (SELECT COUNT(*) FROM needs_list_items nli WHERE nli.loan_id = lr.id AND nli.status = 'pending') as pending_docs,
-             (SELECT MAX(uploaded_at) FROM documents d WHERE d.loan_id = lr.id) as last_upload,
-             EXTRACT(DAY FROM NOW() - lr.updated_at) as days_in_status
+             (SELECT MAX(uploaded_at::timestamp) FROM documents d WHERE d.loan_id = lr.id) as last_upload,
+             EXTRACT(DAY FROM NOW() - (lr.updated_at::timestamp)) as days_in_status
       FROM loan_requests lr
       JOIN users u ON lr.user_id = u.id
       LEFT JOIN users p ON lr.assigned_processor_id = p.id
@@ -124,20 +124,25 @@ router.get('/stats', async (req, res, next) => {
     const staleLoans = await db.query(`
       SELECT COUNT(*) FROM loan_requests 
       WHERE status NOT IN ('funded', 'clear_to_close', 'closing_scheduled')
-      AND updated_at < NOW() - INTERVAL '3 days'
+      AND (updated_at::timestamp) < NOW() - INTERVAL '3 days'
     `);
 
     // Recent uploads (last 24 hours)
+    // Cast uploaded_at to timestamp to handle cases where it might be stored as text
     const recentUploads = await db.query(`
-      SELECT COUNT(*) FROM documents WHERE uploaded_at > NOW() - INTERVAL '24 hours'
+      SELECT COUNT(*) FROM documents 
+      WHERE (uploaded_at::timestamp) > NOW() - INTERVAL '24 hours'
     `);
 
     // This month's volume
+    // Compare funded_date directly as DATE type
     const monthlyVolume = await db.query(`
       SELECT COUNT(*), SUM(funded_amount) as amount 
       FROM loan_requests 
       WHERE status = 'funded' 
-      AND funded_date >= DATE_TRUNC('month', CURRENT_DATE)
+      AND funded_date IS NOT NULL
+      AND EXTRACT(YEAR FROM funded_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+      AND EXTRACT(MONTH FROM funded_date) = EXTRACT(MONTH FROM CURRENT_DATE)
     `);
 
     res.json({
@@ -187,7 +192,7 @@ router.get('/loan/:id', async (req, res, next) => {
     const needsList = await db.query(`
       SELECT nli.*, 
              (SELECT COUNT(*) FROM documents d WHERE d.needs_list_item_id = nli.id) as document_count,
-             (SELECT MAX(uploaded_at) FROM documents d WHERE d.needs_list_item_id = nli.id) as last_upload
+             (SELECT MAX(uploaded_at::timestamp) FROM documents d WHERE d.needs_list_item_id = nli.id) as last_upload
       FROM needs_list_items nli
       WHERE nli.loan_id = $1
       ORDER BY nli.folder_name, nli.created_at
@@ -269,6 +274,118 @@ router.put('/loan/:id/status', [
     await logAudit(req.user.id, 'LOAN_STATUS_UPDATED', 'loan', req.params.id, req, { status, notes });
 
     res.json({ message: 'Status updated', newStatus: status, step });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Approve quote request and generate quote
+router.post('/loan/:id/approve-quote', async (req, res, next) => {
+  try {
+    const { generateSoftQuote } = require('../services/quoteService');
+    const { generateTermSheet } = require('../services/pdfService');
+    const { sendSoftQuoteEmail } = require('../services/emailService');
+    const { generateInitialNeedsListForLoan } = require('../services/quoteService');
+
+    // Get loan details
+    const loanResult = await db.query('SELECT * FROM loan_requests WHERE id = $1', [req.params.id]);
+    if (loanResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Loan not found' });
+    }
+
+    const loan = loanResult.rows[0];
+
+    // Check if loan is in quote_requested status
+    if (loan.status !== 'quote_requested') {
+      return res.status(400).json({ 
+        error: `Loan is not in quote_requested status. Current status: ${loan.status}` 
+      });
+    }
+
+    // Get borrower's credit score if available
+    const profile = await db.query('SELECT credit_score, fico_score FROM crm_profiles WHERE user_id = $1', [loan.user_id]);
+    const creditScore = profile.rows[0]?.fico_score || profile.rows[0]?.credit_score || null;
+
+    // Generate soft quote
+    const quoteData = generateSoftQuote(loan, creditScore);
+
+    if (!quoteData.approved) {
+      // If quote is not approved, decline the loan
+      await db.query(`
+        UPDATE loan_requests SET
+          status = 'declined',
+          current_step = 2,
+          updated_at = NOW()
+        WHERE id = $1
+      `, [req.params.id]);
+
+      const statusHistoryId = require('uuid').v4();
+      await db.query(`
+        INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
+        VALUES ($1, $2, 'declined', 2, $3, $4)
+      `, [statusHistoryId, req.params.id, req.user.id, quoteData.declineReason || 'Loan declined during quote approval']);
+
+      // Notify borrower
+      await db.query(`
+        INSERT INTO notifications (user_id, loan_id, type, title, message)
+        VALUES ($1, $2, 'quote_declined', $3, $4)
+      `, [loan.user_id, req.params.id, 'Quote Request Declined', `Your loan ${loan.loan_number} quote request has been declined: ${quoteData.declineReason || 'Does not meet requirements'}`]);
+
+      await logAudit(req.user.id, 'QUOTE_DECLINED', 'loan', req.params.id, req, { reason: quoteData.declineReason });
+
+      return res.json({
+        message: 'Quote request declined',
+        declined: true,
+        reason: quoteData.declineReason
+      });
+    }
+
+    // Generate term sheet PDF
+    const termSheetPath = await generateTermSheet(loan, quoteData);
+
+    // Update loan with quote data
+    await db.query(`
+      UPDATE loan_requests SET
+        status = 'soft_quote_issued',
+        current_step = 3,
+        soft_quote_generated = true,
+        soft_quote_data = $1,
+        soft_quote_rate_min = $2,
+        soft_quote_rate_max = $3,
+        term_sheet_url = $4,
+        updated_at = NOW()
+      WHERE id = $5
+    `, [JSON.stringify(quoteData), quoteData.interestRateMin, quoteData.interestRateMax, termSheetPath, req.params.id]);
+
+    // Add status history
+    const statusHistoryId = require('uuid').v4();
+    await db.query(`
+      INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
+      VALUES ($1, $2, 'soft_quote_issued', 3, $3, $4)
+    `, [statusHistoryId, req.params.id, req.user.id, `Quote approved and generated by ${req.user.full_name || 'admin'}: ${quoteData.rateRange}`]);
+
+    // Generate initial needs list
+    await generateInitialNeedsListForLoan(req.params.id, loan);
+
+    // Send email notification to borrower
+    const user = await db.query('SELECT * FROM users WHERE id = $1', [loan.user_id]);
+    if (user.rows.length > 0) {
+      await sendSoftQuoteEmail(user.rows[0], { ...loan, term_sheet_url: termSheetPath }, quoteData);
+    }
+
+    // Notify borrower
+    await db.query(`
+      INSERT INTO notifications (user_id, loan_id, type, title, message)
+      VALUES ($1, $2, 'quote_approved', $3, $4)
+    `, [loan.user_id, req.params.id, 'Quote Approved', `Your loan ${loan.loan_number} quote has been approved! View your term sheet to continue.`]);
+
+    await logAudit(req.user.id, 'QUOTE_APPROVED', 'loan', req.params.id, req, { quoteData });
+
+    res.json({
+      message: 'Quote approved and generated successfully',
+      quote: quoteData,
+      termSheetUrl: termSheetPath
+    });
   } catch (error) {
     next(error);
   }
@@ -423,7 +540,7 @@ router.post('/loan/:id/fund', [
 
     await db.query(`
       UPDATE loan_requests SET 
-        funded_date = NOW(),
+        funded_date = CURRENT_DATE,
         funded_amount = $1,
         status = 'funded',
         current_step = 15,
@@ -512,6 +629,37 @@ router.get('/processors', async (req, res, next) => {
       ORDER BY full_name
     `);
     res.json({ processors: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get recent closings (for transactions page)
+router.get('/recent-closings', async (req, res, next) => {
+  try {
+    const { limit = 50 } = req.query;
+    
+    const result = await db.query(`
+      SELECT 
+        lr.loan_number,
+        lr.property_address,
+        lr.property_city,
+        lr.property_state,
+        lr.loan_amount,
+        lr.funded_amount,
+        lr.funded_date,
+        u.full_name as borrower_name,
+        lr.property_type,
+        lr.transaction_type
+      FROM loan_requests lr
+      JOIN users u ON lr.user_id = u.id
+      WHERE lr.status = 'funded' 
+      AND lr.funded_date IS NOT NULL
+      ORDER BY lr.funded_date DESC
+      LIMIT $1
+    `, [limit]);
+
+    res.json({ closings: result.rows });
   } catch (error) {
     next(error);
   }

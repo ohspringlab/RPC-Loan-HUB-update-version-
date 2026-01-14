@@ -269,20 +269,70 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       });
     }
 
+    // Auto-generate soft quote on submit (if DSCR is valid or exempt)
+    const { shouldAutoDecline } = require('../services/quoteService');
+    const declineCheck = shouldAutoDecline(loan);
+    
+    if (declineCheck.declined) {
+      // Auto-decline if DSCR < 1.0x (unless exempt)
+      await db.query(`
+        UPDATE loan_requests SET 
+          status = 'declined',
+          dscr_auto_declined = true,
+          current_step = 3,
+          updated_at = NOW()
+        WHERE id = $1
+      `, [req.params.id]);
+
+      const statusHistoryId1 = require('uuid').v4();
+      await db.query(`
+        INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
+        VALUES ($1, $2, 'declined', 3, $3, $4)
+      `, [statusHistoryId1, req.params.id, req.user.id, declineCheck.reason]);
+
+      await logAudit(req.user.id, 'LOAN_DECLINED', 'loan', req.params.id, req);
+
+      return res.status(400).json({
+        error: 'Loan request declined',
+        reason: declineCheck.reason,
+        declined: true
+      });
+    }
+
+    // Get user's credit score if available (for quote generation)
+    const profile = await db.query('SELECT credit_score, fico_score FROM crm_profiles WHERE user_id = $1', [req.user.id]);
+    const creditScore = profile.rows[0]?.fico_score || profile.rows[0]?.credit_score || null;
+
+    // Always set status to quote_requested - requires admin approval before generating quote
     await db.query(`
-      UPDATE loan_requests SET status = 'quote_requested', current_step = 3, updated_at = NOW()
+      UPDATE loan_requests SET status = 'quote_requested', current_step = 2, updated_at = NOW()
       WHERE id = $1
     `, [req.params.id]);
 
     const statusHistoryId1 = require('uuid').v4();
     await db.query(`
       INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
-      VALUES ($1, $2, 'quote_requested', 3, $3, 'Loan request submitted for quote')
+      VALUES ($1, $2, 'quote_requested', 2, $3, 'Loan request submitted - awaiting admin approval')
     `, [statusHistoryId1, req.params.id, req.user.id]);
+
+    // Notify admin/operations team
+    const loanNumber = loan.loan_number || `Loan ${req.params.id.substring(0, 8)}`;
+    const opsUsers = await db.query(
+      "SELECT id FROM users WHERE role IN ('admin', 'operations') AND is_active = true"
+    );
+    for (const opsUser of opsUsers.rows) {
+      await db.query(`
+        INSERT INTO notifications (user_id, loan_id, type, title, message)
+        VALUES ($1, $2, 'quote_request', $3, $4)
+      `, [opsUser.id, req.params.id, 'New Quote Request', `${loanNumber} requires quote approval`]);
+    }
 
     await logAudit(req.user.id, 'LOAN_SUBMITTED', 'loan', req.params.id, req);
 
-    res.json({ message: 'Loan request submitted successfully' });
+    res.json({ 
+      message: 'Loan request submitted successfully. Your request is pending admin approval.',
+      requiresApproval: true
+    });
   } catch (error) {
     next(error);
   }

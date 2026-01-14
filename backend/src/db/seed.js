@@ -6,13 +6,26 @@ async function seed() {
   try {
     console.log('Seeding database...');
 
+    // Create demo admin user
+    // Use environment variables with fallback to default (development only)
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@rpc-lending.com';
+    const adminPassword = await bcrypt.hash(
+      process.env.ADMIN_PASSWORD || 'admin123456', 
+      12
+    );
+    await pool.query(`
+      INSERT INTO users (email, password_hash, full_name, phone, role, email_verified)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (email) DO NOTHING
+    `, [adminEmail, adminPassword, 'Admin User', '555-000-0000', 'admin', true]);
+
     // Create demo operations user
     const opsPassword = await bcrypt.hash('ops123456', 12);
     await pool.query(`
-      INSERT INTO users (email, password_hash, full_name, phone, role)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO users (email, password_hash, full_name, phone, role, email_verified)
+      VALUES ($1, $2, $3, $4, $5, $6)
       ON CONFLICT (email) DO NOTHING
-    `, ['ops@rpc-lending.com', opsPassword, 'Sarah Martinez', '555-000-0001', 'operations']);
+    `, ['ops@rpc-lending.com', opsPassword, 'Sarah Martinez', '555-000-0001', 'operations', true]);
 
     // Create demo borrower
     const borrowerPassword = await bcrypt.hash('demo123456', 12);
@@ -95,8 +108,11 @@ async function seed() {
 
     console.log('✅ Seed data created successfully');
     console.log('\nDemo Accounts:');
-    console.log('  Borrower: demo@example.com / demo123456');
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@rpc-lending.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123456';
+    console.log(`  Admin: ${adminEmail} / ${adminPassword}`);
     console.log('  Operations: ops@rpc-lending.com / ops123456');
+    console.log('  Borrower: demo@example.com / demo123456');
     process.exit(0);
   } catch (error) {
     console.error('❌ Seeding failed:', error);

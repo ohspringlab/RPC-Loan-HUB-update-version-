@@ -110,11 +110,20 @@ export function LoanCard({
           <p className="text-xs text-muted-foreground">
             Created {new Date(createdAt).toLocaleDateString()}
           </p>
-          <Link to={`/dashboard/loans/${id}`}>
-            <Button variant="ghost" size="sm" className="gap-1">
-              View Details <ArrowRight className="w-4 h-4" />
-            </Button>
-          </Link>
+          <div className="flex gap-2">
+            {status === "soft_quote_issued" && (
+              <Link to={`/dashboard/loans/${id}`}>
+                <Button variant="default" size="sm" className="gap-1 bg-gold-500 hover:bg-gold-600 text-white">
+                  Sign Term Sheet <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            )}
+            <Link to={`/dashboard/loans/${id}`}>
+              <Button variant="ghost" size="sm" className="gap-1">
+                View Details <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </CardContent>
     </Card>

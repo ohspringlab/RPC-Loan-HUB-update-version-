@@ -12,6 +12,7 @@ import LoanRequest from "./pages/LoanRequest";
 import BorrowerDashboard from "./pages/BorrowerDashboard";
 import LoanDetail from "./pages/LoanDetail";
 import OperationsDashboard from "./pages/OperationsDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import AuthError from "./pages/AuthError";
 
@@ -67,7 +68,9 @@ function AppRoutes() {
       {/* Borrower Dashboard */}
       <Route path="/dashboard" element={
         <ProtectedRoute>
-          {user?.role === 'operations' || user?.role === 'admin' ? (
+          {user?.role === 'admin' ? (
+            <Navigate to="/admin" replace />
+          ) : user?.role === 'operations' ? (
             <Navigate to="/ops" replace />
           ) : (
             <BorrowerDashboard />
@@ -91,9 +94,26 @@ function AppRoutes() {
           <OperationsDashboard />
         </ProtectedRoute>
       } />
+      <Route path="/ops/loans/:loanId" element={
+        <ProtectedRoute allowedRoles={['operations', 'admin']}>
+          <LoanDetail />
+        </ProtectedRoute>
+      } />
       <Route path="/ops/*" element={
         <ProtectedRoute allowedRoles={['operations', 'admin']}>
           <OperationsDashboard />
+        </ProtectedRoute>
+      } />
+      
+      {/* Admin Dashboard */}
+      <Route path="/admin" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/*" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminDashboard />
         </ProtectedRoute>
       } />
       

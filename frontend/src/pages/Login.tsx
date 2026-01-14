@@ -110,14 +110,17 @@ export default function Login() {
                 </Button>
               </form>
 
-              {/* Demo credentials */}
-              <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-2">Demo Accounts:</p>
-                <div className="text-xs space-y-1">
-                  <p><span className="font-medium">Borrower:</span> demo@example.com / demo123456</p>
-                  <p><span className="font-medium">Operations:</span> ops@rpc-lending.com / ops123456</p>
+              {/* Demo credentials - Only show in development */}
+              {import.meta.env.DEV && (
+                <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-2">Demo Accounts (Development Only):</p>
+                  <div className="text-xs space-y-1">
+                    <p><span className="font-medium">Admin:</span> admin@rpc-lending.com / admin123456</p>
+                    <p><span className="font-medium">Operations:</span> ops@rpc-lending.com / ops123456</p>
+                    <p><span className="font-medium">Borrower:</span> demo@example.com / demo123456</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 

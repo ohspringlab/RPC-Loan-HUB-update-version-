@@ -225,6 +225,11 @@ export const opsApi = {
 
   getStats: () => apiRequest<PipelineStats>('/operations/stats'),
 
+  getRecentClosings: (limit?: number) => {
+    const params = limit ? `?limit=${limit}` : '';
+    return apiRequest<{ closings: RecentClosing[] }>(`/operations/recent-closings${params}`);
+  },
+
   getStatusOptions: () => apiRequest<{ statuses: StatusOption[] }>('/operations/status-options'),
 
   getLoan: (id: string) =>
@@ -236,6 +241,11 @@ export const opsApi = {
     apiRequest(`/operations/loan/${id}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status, notes }),
+    }),
+
+  approveQuote: (id: string) =>
+    apiRequest<{ message: string; quote: any; termSheetUrl: string }>(`/operations/loan/${id}/approve-quote`, {
+      method: 'POST',
     }),
 
   assignProcessor: (id: string, processorId: string) =>
@@ -502,4 +512,17 @@ export interface StatusOption {
   value: string;
   label: string;
   step: number;
+}
+
+export interface RecentClosing {
+  loan_number: string;
+  property_address: string;
+  property_city: string;
+  property_state: string;
+  loan_amount: number;
+  funded_amount: number;
+  funded_date: string;
+  borrower_name: string;
+  property_type: string;
+  transaction_type: string;
 }

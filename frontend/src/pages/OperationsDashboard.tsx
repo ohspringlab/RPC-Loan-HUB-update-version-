@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { opsApi, Loan, StatusOption, PipelineStats } from "@/lib/api";
 import { 
   Building2, Search, Filter, DollarSign, Users, Clock, TrendingUp, FileText, Eye, 
-  MoreVertical, Bell, Settings, LogOut, User, ChevronDown, Home, RefreshCw, AlertTriangle
+  MoreVertical, Bell, Settings, LogOut, User, ChevronDown, Home, RefreshCw, AlertTriangle, CheckCircle2
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -186,10 +186,11 @@ export default function OperationsDashboard() {
             icon={DollarSign} 
           />
           <StatsCard 
-            title="Needs Attention" 
-            value={stats?.staleLoans || 0} 
+            title="Pending Approvals" 
+            value={loans.filter(l => l.status === 'quote_requested').length} 
             icon={AlertTriangle} 
-            description="Stale > 3 days" 
+            description="Quote requests" 
+            className={loans.filter(l => l.status === 'quote_requested').length > 0 ? "border-yellow-500 bg-yellow-50" : ""}
           />
           <StatsCard 
             title="This Month" 
@@ -198,6 +199,72 @@ export default function OperationsDashboard() {
             description={`${stats?.monthlyFunded || 0} loans funded`} 
           />
         </div>
+
+        {/* Pending Quote Requests Alert */}
+        {loans.filter(l => l.status === 'quote_requested').length > 0 && (
+          <Card className="mb-8 border-yellow-500 bg-yellow-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-yellow-700">
+                <AlertTriangle className="w-5 h-5" />
+                Pending Quote Approvals ({loans.filter(l => l.status === 'quote_requested').length})
+              </CardTitle>
+              <CardDescription>
+                These loan requests are awaiting your approval to generate quotes
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {loans.filter(l => l.status === 'quote_requested').slice(0, 5).map((loan) => (
+                  <div key={loan.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                    <div className="flex-1">
+                      <p className="font-medium">{loan.loan_number}</p>
+                      <p className="text-sm text-muted-foreground">{loan.borrower_name} - {formatCurrency(loan.loan_amount || 0)}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          navigate(`/ops/loans/${loan.id}`);
+                        }}
+                      >
+                        <Eye className="w-4 h-4 mr-2" /> View
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        type="button"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          try {
+                            await opsApi.approveQuote(loan.id);
+                            toast.success(`Quote approved for ${loan.loan_number}`);
+                            loadData();
+                          } catch (error: any) {
+                            console.error('Approve quote error:', error);
+                            toast.error(error.message || 'Failed to approve quote');
+                          }
+                        }}
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-2" /> Approve Quote
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {loans.filter(l => l.status === 'quote_requested').length > 5 && (
+                  <p className="text-sm text-muted-foreground text-center pt-2">
+                    And {loans.filter(l => l.status === 'quote_requested').length - 5} more...
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -299,6 +366,22 @@ export default function OperationsDashboard() {
                                   <DropdownMenuItem onClick={() => navigate(`/ops/loans/${loan.id}`)}>
                                     <Eye className="w-4 h-4 mr-2" /> View Details
                                   </DropdownMenuItem>
+                                  {loan.status === 'quote_requested' && (
+                                    <DropdownMenuItem 
+                                      onClick={async () => {
+                                        try {
+                                          await opsApi.approveQuote(loan.id);
+                                          toast.success('Quote approved and generated successfully');
+                                          loadData();
+                                        } catch (error: any) {
+                                          toast.error(error.message || 'Failed to approve quote');
+                                        }
+                                      }}
+                                      className="text-green-600 focus:text-green-600"
+                                    >
+                                      <CheckCircle2 className="w-4 h-4 mr-2" /> Approve Quote
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem onClick={() => { setSelectedLoan(loan); setNewStatus(loan.status); setShowStatusDialog(true); }}>
                                     <RefreshCw className="w-4 h-4 mr-2" /> Update Status
                                   </DropdownMenuItem>
