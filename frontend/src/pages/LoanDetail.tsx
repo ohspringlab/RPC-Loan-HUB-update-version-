@@ -623,13 +623,23 @@ export default function LoanDetail() {
                   <p><strong>Has Quote Data:</strong> {loan.soft_quote_data ? '✅ Yes' : '❌ No'}</p>
                   <p><strong>Term Sheet URL:</strong> {loan.term_sheet_url ? '✅ Yes' : '❌ No'}</p>
                   <p><strong>Current Step:</strong> {loan.current_step || 'N/A'}</p>
+                  {loan.status === "funded" && (
+                    <>
+                      <p><strong>Funded Date:</strong> {loan.funded_date ? new Date(loan.funded_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '❌ No'}</p>
+                      <p><strong>Funded Amount:</strong> {loan.funded_amount ? formatCurrency(loan.funded_amount) : '❌ No'}</p>
+                    </>
+                  )}
                   <p><strong>Is Ops View:</strong> {isOpsView ? '✅ Yes' : '❌ No'}</p>
                   <p><strong>Should Show Sign Card:</strong> {
-                    ((loan.status === "soft_quote_issued" || 
-                      loan.status === "soft_quote" || 
-                      (loan.soft_quote_generated && !loan.term_sheet_signed)) && 
-                      !loan.term_sheet_signed && 
-                      !isOpsView) ? '✅ YES' : '❌ NO'
+                    loan.status === "funded" 
+                      ? '❌ NO (Loan Complete)' 
+                      : ((loan.status === "soft_quote_issued" || 
+                          loan.status === "soft_quote" || 
+                          (loan.soft_quote_generated && !loan.term_sheet_signed)) && 
+                          !loan.term_sheet_signed && 
+                          !isOpsView) 
+                        ? '✅ YES' 
+                        : '❌ NO'
                   }</p>
                 </CardContent>
               </Card>

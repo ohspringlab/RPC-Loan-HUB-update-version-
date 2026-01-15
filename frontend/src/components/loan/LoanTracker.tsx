@@ -299,17 +299,31 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
 
       {/* Current Stage Info */}
       {currentStep && CurrentIcon && (
-        <div className="mt-6 p-4 bg-gold-500/10 border border-gold-500/20 rounded-lg">
+        <div className={cn(
+          "mt-6 p-4 rounded-lg border",
+          isFunded 
+            ? "bg-success/10 border-success/20" 
+            : "bg-gold-500/10 border-gold-500/20"
+        )}>
           <div className="flex items-center gap-3">
             <div className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center",
-              "bg-gold-500 text-navy-900"
+              isFunded 
+                ? "bg-success text-white" 
+                : "bg-gold-500 text-navy-900"
             )}>
-              <CurrentIcon className="w-5 h-5" />
+              {isFunded ? (
+                <Check className="w-5 h-5" />
+              ) : (
+                <CurrentIcon className="w-5 h-5" />
+              )}
             </div>
             <div>
-              <p className="font-semibold text-sm text-gold-700">
-                Current Stage: {currentStep.label}
+              <p className={cn(
+                "font-semibold text-sm",
+                isFunded ? "text-success" : "text-gold-700"
+              )}>
+                {isFunded ? "Completed Stage" : "Current Stage"}: {currentStep.label}
               </p>
               <p className="text-xs text-muted-foreground">
                 {currentStep.description}
