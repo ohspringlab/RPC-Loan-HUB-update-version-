@@ -213,9 +213,9 @@ router.get('/loan/:id', async (req, res, next) => {
     const documents = await db.query(`
       SELECT d.*, u.full_name as uploaded_by_name
       FROM documents d
-      LEFT JOIN users u ON d.user_id = u.id
+      LEFT JOIN users u ON d.uploaded_by = u.id
       WHERE d.loan_id = $1 
-      ORDER BY d.folder_name, d.uploaded_at DESC
+      ORDER BY d.category, d.uploaded_at DESC
     `, [req.params.id]);
 
     const payments = await db.query(`

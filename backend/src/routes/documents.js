@@ -63,7 +63,7 @@ router.get('/loan/:loanId', authenticate, async (req, res, next) => {
       FROM documents d
       LEFT JOIN needs_list_items nli ON d.needs_list_item_id = nli.id
       WHERE d.loan_id = $1
-      ORDER BY d.folder_name, d.uploaded_at DESC
+      ORDER BY nli.folder_name, d.uploaded_at DESC
     `, [req.params.loanId]);
 
     // Group by folder with color status
