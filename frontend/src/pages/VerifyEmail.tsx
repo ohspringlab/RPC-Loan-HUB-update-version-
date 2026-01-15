@@ -37,6 +37,8 @@ export default function VerifyEmail() {
     }
   };
 
+  const [verificationUrl, setVerificationUrl] = useState<string | null>(null);
+
   const resendVerification = async () => {
     try {
       const result = await authApi.sendVerificationEmail() as any;
@@ -44,17 +46,10 @@ export default function VerifyEmail() {
       
       // In development, show the verification URL if provided
       if (result?.verificationUrl) {
+        setVerificationUrl(result.verificationUrl);
         console.log('Verification URL:', result.verificationUrl);
-        toast.info(`Development Mode: Click here to verify`, {
-          description: result.verificationUrl,
-          duration: 10000,
-          action: {
-            label: 'Copy URL',
-            onClick: () => {
-              navigator.clipboard.writeText(result.verificationUrl);
-              toast.success('URL copied to clipboard');
-            }
-          }
+        toast.info(`Development Mode: Verification URL available below`, {
+          duration: 5000,
         });
       }
     } catch (error: any) {
@@ -120,17 +115,55 @@ export default function VerifyEmail() {
                   <p className="text-sm text-muted-foreground text-center">
                     We've sent a verification email to your inbox. Please click the link in the email to verify your account.
                   </p>
-                  {process.env.NODE_ENV === 'development' && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-xs text-blue-800 mb-2">
-                        <strong>Development Mode:</strong> Check the browser console or backend logs for the verification URL.
-                      </p>
+                  
+                  {/* Development Mode - Show Verification URL */}
+                  {(process.env.NODE_ENV === 'development' || verificationUrl) && (
+                    <div className="p-4 bg-blue-50 border-2 border-blue-300 rounded-lg space-y-3">
+                      <div className="flex items-start gap-2">
+                        <Mail className="w-5 h-5 text-blue-600 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-blue-900 mb-2">
+                            Development Mode: Verification Link
+                          </p>
+                          <p className="text-xs text-blue-700 mb-3">
+                            Since emails aren't configured in development, use this link to verify your email:
+                          </p>
+                          {verificationUrl ? (
+                            <div className="space-y-2">
+                              <a 
+                                href={verificationUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block p-3 bg-white border-2 border-blue-400 rounded-lg hover:bg-blue-50 transition-colors break-all text-xs text-blue-900 font-mono"
+                              >
+                                {verificationUrl}
+                              </a>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full border-blue-400 text-blue-700 hover:bg-blue-100"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(verificationUrl);
+                                  toast.success('Verification URL copied to clipboard!');
+                                }}
+                              >
+                                Copy Verification Link
+                              </Button>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-blue-600 italic">
+                              Click "Resend Verification Email" to generate a verification link.
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
+                  
                   <div className="space-y-2">
                     <Button onClick={resendVerification} variant="gold" className="w-full">
                       <Mail className="w-4 h-4 mr-2" />
-                      Resend Verification Email
+                      {verificationUrl ? 'Regenerate Verification Link' : 'Resend Verification Email'}
                     </Button>
                     <Button onClick={() => navigate('/dashboard')} variant="outline" className="w-full">
                       Go to Dashboard

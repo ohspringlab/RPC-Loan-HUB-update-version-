@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 interface LoanCardProps {
   id: string;
+  loanNumber?: string;
   propertyAddress: string;
   city: string;
   state: string;
@@ -21,6 +22,7 @@ interface LoanCardProps {
 
 export function LoanCard({
   id,
+  loanNumber,
   propertyAddress,
   city,
   state,
@@ -49,6 +51,9 @@ export function LoanCard({
           <CardContent className="p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
+                {loanNumber && (
+                  <p className="text-xs text-muted-foreground mb-1 font-mono">{loanNumber}</p>
+                )}
                 <div className="flex items-center gap-2 mb-1">
                   <Building2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   <p className="font-medium truncate">{propertyAddress}</p>
@@ -84,15 +89,18 @@ export function LoanCard({
       <Card className="overflow-hidden hover:shadow-lg transition-all cursor-pointer h-full">
         <CardHeader className="bg-navy-800 text-white pb-4">
           <div className="flex items-start justify-between">
-            <div>
+            <div className="flex-1 min-w-0">
+              {loanNumber && (
+                <p className="text-gold-400 text-xs font-mono mb-1">{loanNumber}</p>
+              )}
               <p className="text-gold-400 text-sm font-medium mb-1">{transactionType}</p>
-              <CardTitle className="text-lg">{propertyAddress}</CardTitle>
+              <CardTitle className="text-lg truncate">{propertyAddress}</CardTitle>
               <p className="text-white/60 text-sm flex items-center gap-1 mt-1">
                 <MapPin className="w-3 h-3" />
                 {city}, {state}
               </p>
             </div>
-            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${config.color} flex-shrink-0 ml-2`}>
               {config.label}
             </span>
           </div>

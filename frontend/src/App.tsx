@@ -14,6 +14,8 @@ import LoanDetail from "./pages/LoanDetail";
 import OperationsDashboard from "./pages/OperationsDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import LoanPrograms from "./pages/LoanPrograms";
+import Contact from "./pages/Contact";
+import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 import AuthError from "./pages/AuthError";
 
@@ -51,6 +53,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/loan-programs" element={<LoanPrograms />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/contact" element={<Contact />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Register />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} />
       <Route path="/verify-email" element={<VerifyEmail />} />

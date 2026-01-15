@@ -457,28 +457,40 @@ export default function AdminDashboard() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <p className="text-3xl font-bold text-white mb-1">$0</p>
+                      <p className="text-3xl font-bold text-white mb-1">
+                        {formatCurrency(stats?.pipelineProfit?.totalPotential || 0)}
+                      </p>
                       <p className="text-sm text-green-300/70">Total Potential Profit</p>
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-green-500/20">
                       <div>
                         <p className="text-sm text-green-300/70 mb-1">Weighted Profit</p>
-                        <p className="text-lg font-semibold text-white">$0</p>
+                        <p className="text-lg font-semibold text-white">
+                          {formatCurrency(stats?.pipelineProfit?.weightedProfit || 0)}
+                        </p>
                         <p className="text-xs text-green-300/60 mt-1">Adjusted by deal probability</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4 pt-3 border-t border-green-500/20">
                       <div>
-                        <p className="text-sm text-green-300/70">3 Open Deals</p>
+                        <p className="text-sm text-green-300/70">
+                          {stats?.pipelineProfit?.openDeals || 0} Open Deals
+                        </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-green-300/70">$0.0K Avg Profit/Deal</p>
+                        <p className="text-sm text-green-300/70">
+                          {formatCurrency((stats?.pipelineProfit?.avgProfitPerDeal || 0) / 1000)}K Avg Profit/Deal
+                        </p>
                       </div>
                       <div>
-                        <p className="text-sm text-green-300/70">Won Profit This Month $0</p>
+                        <p className="text-sm text-green-300/70">
+                          Won Profit This Month {formatCurrency(stats?.pipelineProfit?.wonThisMonth || 0)}
+                        </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-green-300/70">Deals Won 0</p>
+                        <p className="text-sm text-green-300/70">
+                          Deals Won {stats?.pipelineProfit?.dealsWonThisMonth || 0}
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -506,31 +518,44 @@ export default function AdminDashboard() {
                     <div className="grid grid-cols-3 gap-4">
                       <div>
                         <p className="text-xs text-slate-400 mb-1">THIS QUARTER</p>
-                        <p className="text-lg font-semibold text-white">$0</p>
-                        <p className="text-xs text-green-400">+$0 profit</p>
+                        <p className="text-lg font-semibold text-white">
+                          {formatCurrency(stats?.forecast?.thisQuarter || 0)}
+                        </p>
+                        <p className="text-xs text-green-400">
+                          +{formatCurrency(stats?.forecast?.expectedProfit || 0)} profit
+                        </p>
                       </div>
                       <div>
                         <p className="text-xs text-slate-400 mb-1">PIPELINE</p>
-                        <p className="text-lg font-semibold text-white">$15K</p>
+                        <p className="text-lg font-semibold text-white">
+                          {formatCurrency((stats?.forecast?.pipeline || 0) / 1000)}K
+                        </p>
                         <p className="text-xs text-slate-500">weighted value</p>
                       </div>
                       <div>
                         <p className="text-xs text-slate-400 mb-1">EXPECTED PROFIT</p>
-                        <p className="text-lg font-semibold text-white">$0</p>
+                        <p className="text-lg font-semibold text-white">
+                          {formatCurrency(stats?.forecast?.expectedProfit || 0)}
+                        </p>
                         <p className="text-xs text-slate-500">probability-adjusted</p>
                       </div>
                     </div>
                     <div className="space-y-2 pt-3 border-t border-slate-800">
-                      {["January", "February", "March", "April", "May", "June"].map((month, idx) => (
-                        <div key={month} className="flex items-center justify-between text-sm">
-                          <span className="text-slate-400">{month} 2026</span>
-                          <div className="flex items-center gap-4">
-                            <span className="text-slate-500">0 deals expected</span>
-                            <span className="text-white font-medium">$0</span>
-                            <span className="text-green-400">+$0 profit</span>
+                      {["January", "February", "March", "April", "May", "June"].map((month, idx) => {
+                        const monthProfit = (stats?.forecast?.expectedProfit || 0) / 6; // Distribute evenly for now
+                        return (
+                          <div key={month} className="flex items-center justify-between text-sm">
+                            <span className="text-slate-400">{month} 2026</span>
+                            <div className="flex items-center gap-4">
+                              <span className="text-slate-500">
+                                {Math.round((stats?.pipelineProfit?.openDeals || 0) / 6)} deals expected
+                              </span>
+                              <span className="text-white font-medium">{formatCurrency(monthProfit)}</span>
+                              <span className="text-green-400">+{formatCurrency(monthProfit)} profit</span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
@@ -542,51 +567,60 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-2">
                         <AlertTriangle className="w-5 h-5 text-yellow-400" />
                         <CardTitle className="text-white">Needs Attention</CardTitle>
-                        <Badge variant="destructive" className="ml-2">4</Badge>
+                        <Badge variant="destructive" className="ml-2">
+                          {stats?.needsAttention?.total || 0}
+                        </Badge>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div 
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
-                      onClick={() => navigate('/admin/leads/quarantine')}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Circle className="w-2 h-2 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm text-slate-300">1 submission in quarantine</span>
+                    {stats?.needsAttention?.staleLoans > 0 && (
+                      <div 
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
+                        onClick={() => navigate('/ops')}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Circle className="w-2 h-2 fill-yellow-400 text-yellow-400" />
+                          <span className="text-sm text-slate-300">
+                            {stats.needsAttention.staleLoans} stale loan{stats.needsAttention.staleLoans !== 1 ? 's' : ''} (3+ days)
+                          </span>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-slate-500" />
                       </div>
-                      <ArrowRight className="w-4 h-4 text-slate-500" />
-                    </div>
-                    <div 
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
-                      onClick={() => navigate('/admin/content/ai-articles')}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Circle className="w-2 h-2 fill-blue-400 text-blue-400" />
-                        <span className="text-sm text-slate-300">1 AI reply pending approval</span>
+                    )}
+                    {stats?.needsAttention?.pendingQuotes > 0 && (
+                      <div 
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
+                        onClick={() => navigate('/ops')}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Circle className="w-2 h-2 fill-blue-400 text-blue-400" />
+                          <span className="text-sm text-slate-300">
+                            {stats.needsAttention.pendingQuotes} quote{stats.needsAttention.pendingQuotes !== 1 ? 's' : ''} pending approval
+                          </span>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-slate-500" />
                       </div>
-                      <ArrowRight className="w-4 h-4 text-slate-500" />
-                    </div>
-                    <div 
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
-                      onClick={() => navigate('/admin/leads/submissions')}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Circle className="w-2 h-2 fill-blue-400 text-blue-400" />
-                        <span className="text-sm text-slate-300">25 new leads awaiting review</span>
+                    )}
+                    {stats?.needsAttention?.pendingDocs > 0 && (
+                      <div 
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
+                        onClick={() => navigate('/ops')}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Circle className="w-2 h-2 fill-blue-400 text-blue-400" />
+                          <span className="text-sm text-slate-300">
+                            {stats.needsAttention.pendingDocs} document{stats.needsAttention.pendingDocs !== 1 ? 's' : ''} pending review
+                          </span>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-slate-500" />
                       </div>
-                      <ArrowRight className="w-4 h-4 text-slate-500" />
-                    </div>
-                    <div 
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
-                      onClick={() => navigate('/admin/content/ai-articles')}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Circle className="w-2 h-2 fill-blue-400 text-blue-400" />
-                        <span className="text-sm text-slate-300">6 articles pending review</span>
+                    )}
+                    {(!stats?.needsAttention || stats.needsAttention.total === 0) && (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-slate-400">All caught up! No items need attention.</p>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-slate-500" />
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -609,81 +643,48 @@ export default function AdminDashboard() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div 
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
-                      onClick={() => navigate('/ops')}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                          <User className="w-4 h-4 text-green-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-white">New lead: Eyal Test</p>
-                          <p className="text-xs text-slate-500">23 hours ago</p>
-                        </div>
+                    {stats?.recentActivity && stats.recentActivity.length > 0 ? (
+                      stats.recentActivity.slice(0, 5).map((activity) => {
+                        const timeAgo = new Date(activity.timestamp);
+                        const hoursAgo = Math.floor((Date.now() - timeAgo.getTime()) / (1000 * 60 * 60));
+                        const timeText = hoursAgo < 1 ? 'Just now' : 
+                                         hoursAgo === 1 ? '1 hour ago' : 
+                                         `${hoursAgo} hours ago`;
+                        
+                        return (
+                          <div 
+                            key={activity.id}
+                            className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
+                            onClick={() => navigate(`/ops/loans/${activity.id}`)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                                <User className="w-4 h-4 text-green-400" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-white">{activity.description}</p>
+                                <p className="text-xs text-slate-500">{timeText}</p>
+                              </div>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-slate-400 hover:text-white"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/ops/loans/${activity.id}`);
+                              }}
+                            >
+                              View
+                            </Button>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-slate-400">No recent activity</p>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-slate-400 hover:text-white"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate('/ops');
-                        }}
-                      >
-                        View
-                      </Button>
-                    </div>
-                    <div 
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
-                      onClick={() => navigate('/ops')}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                          <User className="w-4 h-4 text-green-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-white">New lead: Robertinign</p>
-                          <p className="text-xs text-slate-500">23 hours ago</p>
-                        </div>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-slate-400 hover:text-white"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate('/ops');
-                        }}
-                      >
-                        View
-                      </Button>
-                    </div>
-                    <div 
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
-                      onClick={() => navigate('/ops')}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                          <User className="w-4 h-4 text-green-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-white">New lead: Robertinign</p>
-                          <p className="text-xs text-slate-500">23 hours ago</p>
-                        </div>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-slate-400 hover:text-white"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate('/ops');
-                        }}
-                      >
-                        View
-                      </Button>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>

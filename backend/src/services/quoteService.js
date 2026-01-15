@@ -337,10 +337,21 @@ const generateInitialNeedsListForLoan = async (loanId, loan, db) => {
       values.push(item.type, item.folder, item.description, 'pending', item.required);
       placeholders.push(`$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`);
 
+      // Check if this document type already exists for this loan to prevent duplicates
+      const existingCheck = await db.query(`
+        SELECT id FROM needs_list_items 
+        WHERE loan_id = $1 AND document_type = $2 AND folder_name = $3
+        LIMIT 1
+      `, [loanId, item.type, item.folder]);
+      
+      if (existingCheck.rows.length > 0) {
+        console.log(`[generateInitialNeedsListForLoan] Skipping duplicate: ${item.type} in ${item.folder}`);
+        continue; // Skip if already exists
+      }
+
       const query = `
         INSERT INTO needs_list_items (${columns.join(', ')})
         VALUES (${placeholders.join(', ')})
-        ON CONFLICT DO NOTHING
       `;
       
       console.log('[generateInitialNeedsListForLoan] Insert query:', query);

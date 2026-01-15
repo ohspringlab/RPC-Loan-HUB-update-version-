@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { loansApi, documentsApi, profileApi, Loan, NeedsListItem, Notification } from "@/lib/api";
 import { 
   ArrowRight, Building2, DollarSign, FileText, Plus, User, Bell, Settings, LogOut, 
-  Clock, Upload, FolderOpen, Download, CheckCircle2, AlertCircle, Mail, XCircle
+  Clock, Upload, FolderOpen, Download, CheckCircle2, AlertCircle, Mail, XCircle, RefreshCw, Search, Filter
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -18,42 +18,106 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 export default function BorrowerDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [loans, setLoans] = useState<Loan[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [needsList, setNeedsList] = useState<NeedsListItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("active"); // Default to showing only active loans
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async (showLoading = true, forceRefresh = false) => {
     try {
+      if (showLoading) setIsLoading(true);
+      
+      // Add cache busting timestamp for force refresh
+      const cacheBuster = forceRefresh ? `?t=${Date.now()}` : '';
+      
       const [loansRes, notifRes] = await Promise.all([
         loansApi.list(),
         profileApi.getNotifications()
       ]);
-      setLoans(loansRes.loans);
+      
+      // Sort loans by created_at DESC (most recent first)
+      const sortedLoans = [...loansRes.loans].sort((a, b) => {
+        const dateA = new Date(a.created_at).getTime();
+        const dateB = new Date(b.created_at).getTime();
+        return dateB - dateA;
+      });
+      
+      setLoans(sortedLoans);
       setNotifications(notifRes.notifications);
       setUnreadCount(notifRes.unreadCount);
       
-      if (loansRes.loans.length > 0) {
-        setSelectedLoan(loansRes.loans[0]);
-        const needsRes = await documentsApi.getNeedsList(loansRes.loans[0].id);
-        setNeedsList(needsRes.needsList);
+      // Always select the most recent loan when data is refreshed
+      if (sortedLoans.length > 0) {
+        const mostRecentLoan = sortedLoans[0];
+        setSelectedLoan(mostRecentLoan);
+        try {
+          const needsRes = await documentsApi.getNeedsList(mostRecentLoan.id);
+          setNeedsList(needsRes.needsList);
+        } catch (error) {
+          console.error('Failed to load needs list:', error);
+          setNeedsList([]);
+        }
+      } else {
+        setSelectedLoan(null);
+        setNeedsList([]);
       }
     } catch (error) {
       console.error('Failed to load data:', error);
+      toast.error('Failed to load dashboard data');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []); // Remove selectedLoan from deps to avoid unnecessary re-renders
+
+  // Load data on mount and when location changes (user navigates back)
+  useEffect(() => {
+    // Always force refresh when pathname changes to ensure we have latest loans
+    // This handles navigation from loan creation, loan detail pages, etc.
+    loadData(true, true);
+  }, [location.pathname]); // Refresh when pathname changes
+
+  // Also refresh when window gains focus (user switches back to tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      // Only refresh if we're on the dashboard
+      if (location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/')) {
+        loadData(false, true); // Force refresh but don't show loading spinner on focus refresh
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [location.pathname]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    // Force refresh with cache busting
+    await loadData(false, true);
+    toast.success('Dashboard refreshed');
+  };
+
+  const handleLoanSelect = async (loan: Loan) => {
+    setSelectedLoan(loan);
+    try {
+      const needsRes = await documentsApi.getNeedsList(loan.id);
+      setNeedsList(needsRes.needsList);
+    } catch (error) {
+      console.error('Failed to load needs list:', error);
+      setNeedsList([]);
     }
   };
 
@@ -224,11 +288,23 @@ export default function BorrowerDashboard() {
             </h1>
             <p className="text-muted-foreground">Here's an overview of your loan activity</p>
           </div>
-          <Link to="/loan-request">
-            <Button variant="gold" className="gap-2">
-              <Plus className="w-4 h-4" /> New Loan Request
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
-          </Link>
+            <Link to="/loan-request">
+              <Button variant="gold" className="gap-2">
+                <Plus className="w-4 h-4" /> New Loan Request
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -263,49 +339,137 @@ export default function BorrowerDashboard() {
                 <div className="lg:col-span-2 space-y-6">
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-lg font-semibold">Active Loans</h2>
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-lg font-semibold">My Loans</h2>
+                        <Badge variant="outline" className="text-xs">
+                          {(() => {
+                            const activeLoans = loans.filter(l => l.status !== 'funded');
+                            return `${activeLoans.length} active, ${loans.length} total`;
+                          })()}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const showCompleted = statusFilter === 'all' || statusFilter === 'funded';
+                            setStatusFilter(showCompleted ? 'active' : 'all');
+                          }}
+                          className="text-xs"
+                        >
+                          {(() => {
+                            const showCompleted = statusFilter === 'all' || statusFilter === 'funded';
+                            return showCompleted ? 'Hide Completed' : 'Show All';
+                          })()}
+                        </Button>
+                      </div>
                     </div>
-                    {loans.filter(l => l.status === 'soft_quote_issued' && !l.term_sheet_signed).length > 0 && (
-                      <Card className="mb-4 border-cyan-500 bg-cyan-50">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold text-cyan-900">Action Required</p>
-                              <p className="text-sm text-cyan-700">
-                                You have {loans.filter(l => l.status === 'soft_quote_issued' && !l.term_sheet_signed).length} loan(s) with approved quotes ready to sign
-                              </p>
+                    {(() => {
+                      const activeLoans = statusFilter === 'active' 
+                        ? loans.filter(l => l.status !== 'funded')
+                        : loans;
+                      const loansToSign = activeLoans.filter(l => l.status === 'soft_quote_issued' && !l.term_sheet_signed);
+                      
+                      return loansToSign.length > 0 && (
+                        <Card className="mb-4 border-cyan-500 bg-cyan-50">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-cyan-900">Action Required</p>
+                                <p className="text-sm text-cyan-700">
+                                  You have {loansToSign.length} loan(s) with approved quotes ready to sign
+                                </p>
+                              </div>
+                              <Button 
+                                variant="default" 
+                                className="bg-cyan-600 hover:bg-cyan-700"
+                                onClick={() => {
+                                  const loanToSign = loansToSign[0];
+                                  if (loanToSign) {
+                                    navigate(`/dashboard/loans/${loanToSign.id}`);
+                                  }
+                                }}
+                              >
+                                Sign Term Sheet
+                              </Button>
                             </div>
-                            <Button 
-                              variant="default" 
-                              className="bg-cyan-600 hover:bg-cyan-700"
-                              onClick={() => {
-                                const loanToSign = loans.find(l => l.status === 'soft_quote_issued' && !l.term_sheet_signed);
-                                if (loanToSign) {
-                                  navigate(`/dashboard/loans/${loanToSign.id}`);
-                                }
-                              }}
-                            >
-                              Sign Term Sheet
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })()}
                     <div className="grid gap-4">
-                      {loans.map((loan) => (
-                        <LoanCard 
-                          key={loan.id} 
-                          id={loan.id}
-                          propertyAddress={loan.property_address}
-                          city={loan.property_city}
-                          state={loan.property_state}
-                          loanAmount={loan.loan_amount}
-                          propertyType={loan.property_type === 'residential' ? `SFR - ${loan.residential_units || 1} Unit${(loan.residential_units || 1) > 1 ? 's' : ''}` : loan.commercial_type || 'Commercial'}
-                          transactionType={loan.transaction_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'N/A'}
-                          status={loan.status as LoanStatus}
-                          createdAt={loan.created_at}
-                        />
-                      ))}
+                      {(() => {
+                        // Filter out funded loans by default in overview (unless user wants to see all)
+                        const showCompleted = statusFilter === 'all' || statusFilter === 'funded';
+                        const filteredLoans = showCompleted 
+                          ? loans 
+                          : loans.filter(l => l.status !== 'funded');
+                        
+                        if (filteredLoans.length === 0) {
+                          return (
+                            <Card>
+                              <CardContent className="py-12 text-center">
+                                <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold mb-2">No Active Loans</h3>
+                                <p className="text-muted-foreground mb-4">
+                                  {loans.length === 0 
+                                    ? "Start your first loan request to get a soft quote"
+                                    : "All your loans are completed. Click 'Show All' to view completed loans."}
+                                </p>
+                                {loans.length === 0 ? (
+                                  <Link to="/loan-request">
+                                    <Button variant="gold">Start Loan Request</Button>
+                                  </Link>
+                                ) : (
+                                  <Button variant="outline" onClick={() => setStatusFilter('all')}>
+                                    Show All Loans
+                                  </Button>
+                                )}
+                              </CardContent>
+                            </Card>
+                          );
+                        }
+                        
+                        return filteredLoans.map((loan, index) => {
+                          // Highlight the most recent loan (first in list)
+                          const isNew = index === 0;
+                          const daysSinceCreated = Math.floor((Date.now() - new Date(loan.created_at).getTime()) / (1000 * 60 * 60 * 24));
+                          const isRecentlyCreated = daysSinceCreated <= 7;
+                          const isCompleted = loan.status === 'funded';
+                          
+                          return (
+                            <div key={loan.id} className="relative">
+                              {isNew && isRecentlyCreated && (
+                                <div className="absolute -top-2 -right-2 z-10">
+                                  <Badge className="bg-green-500 text-white text-xs animate-pulse">
+                                    New
+                                  </Badge>
+                                </div>
+                              )}
+                              {isCompleted && (
+                                <div className="absolute -top-2 -left-2 z-10">
+                                  <Badge variant="outline" className="bg-gray-100 text-gray-600 text-xs">
+                                    Completed
+                                  </Badge>
+                                </div>
+                              )}
+                              <LoanCard 
+                                id={loan.id}
+                                loanNumber={loan.loan_number}
+                                propertyAddress={loan.property_address}
+                                city={loan.property_city}
+                                state={loan.property_state}
+                                loanAmount={loan.loan_amount}
+                                propertyType={loan.property_type === 'residential' ? `SFR - ${loan.residential_units || 1} Unit${(loan.residential_units || 1) > 1 ? 's' : ''}` : loan.commercial_type || 'Commercial'}
+                                transactionType={loan.transaction_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'N/A'}
+                                status={loan.status as LoanStatus}
+                                createdAt={loan.created_at}
+                              />
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -332,20 +496,122 @@ export default function BorrowerDashboard() {
 
           <TabsContent value="loans">
             <div className="space-y-4">
-              {loans.map((loan) => (
-                <LoanCard 
-                  key={loan.id} 
-                  id={loan.id}
-                  propertyAddress={loan.property_address}
-                  city={loan.property_city}
-                  state={loan.property_state}
-                  loanAmount={loan.loan_amount}
-                  propertyType={loan.property_type === 'residential' ? `SFR - ${loan.residential_units || 1} Units` : loan.commercial_type || 'Commercial'}
-                  transactionType={loan.transaction_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'N/A'}
-                  status={loan.status as LoanStatus}
-                  createdAt={loan.created_at}
-                />
-              ))}
+              {/* Search and Filter Controls */}
+              {loans.length > 0 && (
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                        <Input
+                          placeholder="Search by loan number, address, or city..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                      <div className="w-full md:w-48">
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                          <SelectTrigger>
+                            <Filter className="w-4 h-4 mr-2" />
+                            <SelectValue placeholder="All Statuses" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">Active Loans Only</SelectItem>
+                            <SelectItem value="all">All Loans</SelectItem>
+                            <SelectItem value="new_request">New Request</SelectItem>
+                            <SelectItem value="quote_requested">Quote Requested</SelectItem>
+                            <SelectItem value="soft_quote_issued">Soft Quote Issued</SelectItem>
+                            <SelectItem value="term_sheet_signed">Term Sheet Signed</SelectItem>
+                            <SelectItem value="needs_list_sent">Needs List Sent</SelectItem>
+                            <SelectItem value="submitted_to_underwriting">Underwriting</SelectItem>
+                            <SelectItem value="conditionally_approved">Conditionally Approved</SelectItem>
+                            <SelectItem value="clear_to_close">Clear to Close</SelectItem>
+                            <SelectItem value="funded">Funded (Completed)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Filtered Loans List */}
+              {(() => {
+                const filteredLoans = loans.filter(loan => {
+                  const matchesSearch = !searchQuery || 
+                    loan.loan_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    loan.property_address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    loan.property_city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    loan.property_state?.toLowerCase().includes(searchQuery.toLowerCase());
+                  
+                  // Handle status filter - 'active' means exclude funded loans
+                  let matchesStatus = true;
+                  if (statusFilter === 'active') {
+                    matchesStatus = loan.status !== 'funded';
+                  } else if (statusFilter !== 'all') {
+                    matchesStatus = loan.status === statusFilter;
+                  }
+                  
+                  return matchesSearch && matchesStatus;
+                });
+
+                if (filteredLoans.length === 0) {
+                  return (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">No Loans Found</h3>
+                        <p className="text-muted-foreground mb-4">
+                          {loans.length === 0 
+                            ? "Start a new loan request to get started"
+                            : "No loans match your search criteria"}
+                        </p>
+                        {loans.length === 0 && (
+                          <Link to="/loan-request">
+                            <Button variant="gold">Start Loan Request</Button>
+                          </Link>
+                        )}
+                        {(loans.length > 0 && (searchQuery || statusFilter !== 'all')) && (
+                          <Button variant="outline" onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}>
+                            Clear Filters
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                }
+
+                return filteredLoans.map((loan, index) => {
+                  const daysSinceCreated = Math.floor((Date.now() - new Date(loan.created_at).getTime()) / (1000 * 60 * 60 * 24));
+                  const isRecentlyCreated = daysSinceCreated <= 7;
+                  const isNew = index === 0 && !searchQuery && statusFilter === 'all';
+                  
+                  return (
+                    <div key={loan.id} className="relative">
+                      {isNew && isRecentlyCreated && (
+                        <div className="absolute -top-2 -right-2 z-10">
+                          <Badge className="bg-green-500 text-white text-xs animate-pulse">
+                            New
+                          </Badge>
+                        </div>
+                      )}
+                      <LoanCard 
+                        id={loan.id}
+                        loanNumber={loan.loan_number}
+                        propertyAddress={loan.property_address}
+                        city={loan.property_city}
+                        state={loan.property_state}
+                        loanAmount={loan.loan_amount}
+                        propertyType={loan.property_type === 'residential' ? `SFR - ${loan.residential_units || 1} Units` : loan.commercial_type || 'Commercial'}
+                        transactionType={loan.transaction_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'N/A'}
+                        status={loan.status as LoanStatus}
+                        createdAt={loan.created_at}
+                      />
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </TabsContent>
 

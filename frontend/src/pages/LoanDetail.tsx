@@ -8,7 +8,7 @@ import { FullApplicationForm } from "@/components/loan/FullApplicationForm";
 import { loansApi, documentsApi, paymentsApi, opsApi, Loan, NeedsListItem, SoftQuote } from "@/lib/api";
 import { 
   ArrowLeft, Building2, DollarSign, FileText, Download, CreditCard, 
-  CheckCircle2, AlertCircle, Upload, Shield, FileCheck, Calendar, ClipboardCheck
+  CheckCircle2, AlertCircle, Upload, Shield, FileCheck, Calendar, ClipboardCheck, RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -375,6 +375,91 @@ export default function LoanDetail() {
               </Card>
             )}
 
+            {/* Client View - Conditionally Approved - Waiting for Commitment Letter */}
+            {loan.status === "conditionally_approved" && !isOpsView && (
+              <Card className="border-orange-500/50 bg-orange-500/5 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-orange-700">
+                    <CheckCircle2 className="w-5 h-5" />
+                    Loan Conditionally Approved!
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Congratulations! Your loan has been conditionally approved. The commitment letter is being prepared and will be available soon.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-white rounded-lg border-2 border-orange-200">
+                    <p className="text-sm font-medium text-orange-900 mb-2">What's Next:</p>
+                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                      <li>Your commitment letter is being prepared by our operations team</li>
+                      <li>You'll receive an email notification when it's ready</li>
+                      <li>Once available, you can download it from this page</li>
+                      <li>Review the commitment letter and any conditional items</li>
+                    </ul>
+                  </div>
+                  {loan.commitment_letter_url ? (
+                    <div className="space-y-3">
+                      <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg">
+                        <p className="text-sm font-medium text-green-900 mb-2">✓ Commitment Letter Ready!</p>
+                        <p className="text-sm text-green-700 mb-3">Your commitment letter is now available for download.</p>
+                        <a href={loan.commitment_letter_url} target="_blank" rel="noopener noreferrer">
+                          <Button variant="default" className="bg-green-600 hover:bg-green-700 text-white w-full">
+                            <Download className="w-4 h-4 mr-2" /> Download Commitment Letter
+                          </Button>
+                        </a>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        onClick={async () => {
+                          setIsProcessing(true);
+                          try {
+                            await loadLoanData();
+                            toast.success("Page refreshed");
+                          } catch (error: any) {
+                            toast.error("Failed to refresh");
+                          } finally {
+                            setIsProcessing(false);
+                          }
+                        }}
+                        disabled={isProcessing}
+                        className="w-full"
+                      >
+                        <RefreshCw className={`w-4 h-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
+                        Refresh Status
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 p-4 bg-white rounded-lg border-2 border-orange-200">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-600"></div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-orange-900">Commitment letter in preparation</p>
+                        <p className="text-xs text-muted-foreground">We'll notify you when it's ready</p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={async () => {
+                          setIsProcessing(true);
+                          try {
+                            await loadLoanData();
+                            toast.info("Checking for commitment letter...");
+                          } catch (error: any) {
+                            toast.error("Failed to refresh");
+                          } finally {
+                            setIsProcessing(false);
+                          }
+                        }}
+                        disabled={isProcessing}
+                      >
+                        <RefreshCw className={`w-4 h-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
+                        Check Now
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Commitment Letter Upload for Operations - when conditionally approved */}
             {loan.status === "conditionally_approved" && isOpsView && (
               <Card className="border-orange-500/50 bg-orange-500/5">
@@ -396,6 +481,23 @@ export default function LoanDetail() {
                           <Download className="w-4 h-4 mr-2" /> View Commitment Letter
                         </Button>
                       </a>
+                      <Button 
+                        variant="default"
+                        className="bg-green-600 hover:bg-green-700 text-white w-full mt-2"
+                        onClick={async () => {
+                          try {
+                            await opsApi.updateStatus(loanId!, "conditional_commitment_issued", "Commitment letter issued to borrower");
+                            toast.success("Status updated to Conditional Commitment Issued");
+                            await loadLoanData();
+                          } catch (error: any) {
+                            toast.error(error.message || "Failed to update status");
+                          }
+                        }}
+                        disabled={isProcessing}
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        Mark as Issued (Next Step)
+                      </Button>
                     </div>
                   ) : (
                     <Button 
@@ -494,9 +596,101 @@ export default function LoanDetail() {
               </Card>
             )}
 
-            {/* Show document upload section if term sheet is signed but status hasn't updated yet */}
+            {/* Show "Proceed to Next Step" card if term sheet is signed but status hasn't updated */}
             {loan.term_sheet_signed && 
-             loan.status !== "needs_list_sent" && 
+             (loan.status === "soft_quote" || loan.status === "soft_quote_issued") && 
+             !isOpsView && (
+              <Card className="border-green-500/50 bg-green-500/5 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-green-700">
+                    <CheckCircle2 className="w-5 h-5" />
+                    Term Sheet Signed - Proceed to Next Step
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Your term sheet has been signed! The system is preparing your document needs list. Click below to refresh and proceed to the next step.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-white rounded-lg border-2 border-green-200">
+                    <p className="text-sm font-medium text-green-900 mb-2">Next Steps:</p>
+                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                      <li>Document needs list will be generated automatically</li>
+                      <li>You'll receive an email with the required documents</li>
+                      <li>Upload all required documents to continue</li>
+                    </ul>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button 
+                      variant="outline" 
+                      onClick={async () => {
+                        setIsProcessing(true);
+                        try {
+                          // Refresh loan data to get updated status
+                          await loadLoanData();
+                          toast.success("Page refreshed. Checking for updates...");
+                        } catch (error: any) {
+                          toast.error(error.message || "Failed to refresh");
+                        } finally {
+                          setIsProcessing(false);
+                        }
+                      }}
+                      disabled={isProcessing}
+                      className="flex-1"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Refresh Status
+                    </Button>
+                    <Button 
+                      variant="gold" 
+                      onClick={async () => {
+                        setIsProcessing(true);
+                        try {
+                          // Try to trigger needs list generation by calling sign-term-sheet again
+                          // This will check if needs list exists and generate it if not, then update status
+                          await loansApi.signTermSheet(loanId!);
+                          toast.success("Processing next step...");
+                          await loadLoanData();
+                          toast.success("Status updated! Your document needs list should now be available.");
+                        } catch (error: any) {
+                          // If it fails because term sheet is already signed, just refresh
+                          if (error.message?.includes('already') || error.message?.includes('signed')) {
+                            await loadLoanData();
+                            toast.info("Term sheet already signed. Refreshing status...");
+                          } else {
+                            toast.error(error.message || "Failed to proceed to next step");
+                          }
+                        } finally {
+                          setIsProcessing(false);
+                        }
+                      }}
+                      disabled={isProcessing}
+                      className="flex-1 text-lg py-6"
+                    >
+                      {isProcessing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <FileCheck className="w-5 h-5 mr-2" />
+                          Proceed to Next Step
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Show document upload section if term sheet is signed and status is appropriate */}
+            {/* Only show if status is term_sheet_signed or term_sheet_issued, NOT if still in soft_quote stages */}
+            {loan.term_sheet_signed && 
+             loan.status !== "soft_quote" &&
+             loan.status !== "soft_quote_issued" &&
+             loan.status !== "quote_requested" &&
+             loan.status !== "new_request" &&
+             loan.status !== "needs_list_sent" &&  // This has its own section below
              loan.status !== "needs_list_complete" &&
              loan.status !== "submitted_to_underwriting" &&
              loan.status !== "appraisal_ordered" &&
@@ -648,8 +842,36 @@ export default function LoanDetail() {
             {loan.status === "needs_list_sent" && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Document Upload</CardTitle>
-                  <CardDescription>Upload required documents for your loan</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Document Upload</CardTitle>
+                      <CardDescription>Upload required documents for your loan</CardDescription>
+                    </div>
+                    {isOpsView && needsList.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          if (!confirm('This will remove duplicate needs list items. Continue?')) return;
+                          setIsProcessing(true);
+                          try {
+                            const result = await opsApi.cleanupNeedsList(loanId!);
+                            toast.success(result.message || `Removed ${result.removed} duplicate item(s)`);
+                            await loadLoanData();
+                          } catch (error: any) {
+                            toast.error(error.message || 'Failed to cleanup duplicates');
+                          } finally {
+                            setIsProcessing(false);
+                          }
+                        }}
+                        disabled={isProcessing}
+                        className="text-xs"
+                      >
+                        <RefreshCw className="w-3 h-3 mr-1" />
+                        Clean Duplicates
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {needsList.length === 0 ? (
@@ -657,50 +879,122 @@ export default function LoanDetail() {
                   ) : (
                     <div className="space-y-4">
                       <div className="space-y-3">
-                        {needsList.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium">{item.document_type}</p>
-                                {item.required && (
-                                  <Badge variant="outline" className="text-xs">Required</Badge>
-                                )}
-                                {item.document_count > 0 && (
-                                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                )}
+                        {(() => {
+                          // Deduplicate needs list items by document_type and folder_name
+                          // Keep the most recent one (with highest document_count or most recent created_at)
+                          const seen = new Map<string, typeof needsList[0]>();
+                          const deduplicated = needsList.filter(item => {
+                            const key = `${item.document_type}_${item.folder_name || ''}`;
+                            if (!seen.has(key)) {
+                              seen.set(key, item);
+                              return true;
+                            }
+                            // If duplicate, keep the one with more documents or more recent
+                            const existing = seen.get(key)!;
+                            if ((item.document_count || 0) > (existing.document_count || 0)) {
+                              seen.set(key, item);
+                              return true;
+                            }
+                            if (item.document_count === existing.document_count) {
+                              const itemDate = new Date(item.created_at || 0).getTime();
+                              const existingDate = new Date(existing.created_at || 0).getTime();
+                              if (itemDate > existingDate) {
+                                seen.set(key, item);
+                                return true;
+                              }
+                            }
+                            return false;
+                          }).map(item => seen.get(`${item.document_type}_${item.folder_name || ''}`)!);
+
+                          return deduplicated.map((item) => {
+                            const isUploaded = (item.document_count || 0) > 0;
+                            const status = item.status || 'pending';
+                            
+                            return (
+                              <div 
+                                key={item.id} 
+                                className={`flex items-center justify-between p-4 border-2 rounded-lg transition-all ${
+                                  isUploaded 
+                                    ? 'border-green-200 bg-green-50' 
+                                    : status === 'reviewed'
+                                    ? 'border-blue-200 bg-blue-50'
+                                    : status === 'rejected'
+                                    ? 'border-red-200 bg-red-50'
+                                    : 'border-gray-200 bg-white'
+                                }`}
+                              >
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <p className="font-medium text-base">{item.document_type}</p>
+                                    {item.required && (
+                                      <Badge variant="outline" className="text-xs bg-amber-50 border-amber-300 text-amber-700">
+                                        Required
+                                      </Badge>
+                                    )}
+                                    {isUploaded && (
+                                      <Badge variant="outline" className="text-xs bg-green-50 border-green-300 text-green-700">
+                                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                                        Uploaded
+                                      </Badge>
+                                    )}
+                                    {status === 'reviewed' && (
+                                      <Badge variant="outline" className="text-xs bg-blue-50 border-blue-300 text-blue-700">
+                                        Reviewed
+                                      </Badge>
+                                    )}
+                                    {status === 'rejected' && (
+                                      <Badge variant="outline" className="text-xs bg-red-50 border-red-300 text-red-700">
+                                        Rejected
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground mb-2">{item.description}</p>
+                                  {isUploaded && (
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-xs text-green-700 font-medium">
+                                        ✓ {item.document_count} file(s) uploaded
+                                      </p>
+                                      {item.last_upload && (
+                                        <p className="text-xs text-muted-foreground">
+                                          • {new Date(item.last_upload).toLocaleDateString()}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <label className="ml-4">
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file && loanId) {
+                                        try {
+                                          await documentsApi.upload(loanId, file, item.id);
+                                          toast.success("Document uploaded successfully");
+                                          await loadLoanData();
+                                        } catch (error: any) {
+                                          toast.error(error.message || "Upload failed");
+                                        }
+                                      }
+                                    }}
+                                  />
+                                  <Button 
+                                    variant={isUploaded ? "outline" : "default"} 
+                                    size="sm" 
+                                    asChild
+                                    className={isUploaded ? "border-green-300 text-green-700 hover:bg-green-100" : ""}
+                                  >
+                                    <span>
+                                      <Upload className="w-4 h-4 mr-2" /> 
+                                      {isUploaded ? 'Re-upload' : 'Upload'}
+                                    </span>
+                                  </Button>
+                                </label>
                               </div>
-                              <p className="text-sm text-muted-foreground">{item.description}</p>
-                              {item.document_count > 0 && (
-                                <p className="text-xs text-green-600 mt-1 font-medium">
-                                  {item.document_count} file(s) uploaded
-                                </p>
-                              )}
-                            </div>
-                            <label>
-                              <input
-                                type="file"
-                                className="hidden"
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file && loanId) {
-                                    try {
-                                      await documentsApi.upload(loanId, file, item.id);
-                                      toast.success("Document uploaded");
-                                      await loadLoanData();
-                                    } catch (error: any) {
-                                      toast.error(error.message || "Upload failed");
-                                    }
-                                  }
-                                }}
-                              />
-                              <Button variant="outline" size="sm" asChild>
-                                <span>
-                                  <Upload className="w-4 h-4 mr-2" /> Upload
-                                </span>
-                              </Button>
-                            </label>
-                          </div>
-                        ))}
+                            );
+                          });
+                        })()}
                       </div>
                       
                       {/* Submit Documents Button */}
@@ -1033,24 +1327,138 @@ export default function LoanDetail() {
               </Card>
             )}
 
-            {/* Closing Checklist - Borrower View */}
-            {!isOpsView && loan.status === "conditional_commitment_issued" && closingChecklist.length === 0 && (
-              <Card className="border-blue-500/50 bg-blue-500/5">
+            {/* Client View - Commitment Letter Issued - Next Steps */}
+            {!isOpsView && loan.status === "conditional_commitment_issued" && (
+              <Card className="border-blue-500/50 bg-blue-500/5 shadow-lg">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-blue-600">
-                    <ClipboardCheck className="w-5 h-5" />
-                    Awaiting Closing Checklist
+                  <CardTitle className="flex items-center gap-2 text-blue-700">
+                    <FileCheck className="w-5 h-5" />
+                    Commitment Letter Issued!
                   </CardTitle>
-                  <CardDescription>
-                    Your commitment letter has been issued. The operations team will create your closing checklist shortly. You will be notified when it's ready.
+                  <CardDescription className="text-base">
+                    Your commitment letter has been issued. Review it and prepare for the next steps in the closing process.
                   </CardDescription>
                 </CardHeader>
+                <CardContent className="space-y-4">
+                  {loan.commitment_letter_url && (
+                    <div className="p-4 bg-white rounded-lg border-2 border-blue-200">
+                      <p className="text-sm font-medium text-blue-900 mb-3">📄 Your Commitment Letter</p>
+                      <a href={loan.commitment_letter_url} target="_blank" rel="noopener noreferrer">
+                        <Button variant="default" className="bg-blue-600 hover:bg-blue-700 text-white w-full">
+                          <Download className="w-4 h-4 mr-2" /> Download Commitment Letter
+                        </Button>
+                      </a>
+                    </div>
+                  )}
+                  
+                  <div className="p-4 bg-white rounded-lg border-2 border-blue-200">
+                    <p className="text-sm font-medium text-blue-900 mb-2">What's Next:</p>
+                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                      <li>Review your commitment letter carefully</li>
+                      <li>Complete any conditional items mentioned in the letter</li>
+                      <li>Closing checklist will be provided by our operations team</li>
+                      <li>You'll be notified when the closing checklist is ready</li>
+                      <li>Once all items are complete, you'll be "Clear to Close"</li>
+                    </ul>
+                  </div>
+
+                  {closingChecklist.length === 0 ? (
+                    <div className="flex items-center gap-3 p-4 bg-white rounded-lg border-2 border-blue-200">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-blue-900">Closing checklist in preparation</p>
+                        <p className="text-xs text-muted-foreground">We'll notify you when it's ready</p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={async () => {
+                          setIsProcessing(true);
+                          try {
+                            await loadLoanData();
+                            toast.info("Checking for closing checklist...");
+                          } catch (error: any) {
+                            toast.error("Failed to refresh");
+                          } finally {
+                            setIsProcessing(false);
+                          }
+                        }}
+                        disabled={isProcessing}
+                      >
+                        <RefreshCw className={`w-4 h-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
+                        Check Now
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg">
+                      <p className="text-sm font-medium text-green-900 mb-2">✓ Closing Checklist Available</p>
+                      <p className="text-sm text-green-700">Your closing checklist is ready. Please review and complete all required items.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Admin Next Step Action Card - Conditional Commitment Issued */}
+            {isOpsView && loan.status === "conditional_commitment_issued" && (
+              <Card className="border-purple-500/50 bg-purple-500/5 shadow-lg mb-4">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-purple-700">
+                    <ClipboardCheck className="w-5 h-5" />
+                    Next Step: Create Closing Checklist
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    The commitment letter has been issued. Create the closing checklist to proceed to the next stage.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-white rounded-lg border-2 border-purple-200">
+                    <p className="text-sm font-medium text-purple-900 mb-2">Current Status:</p>
+                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                      <li>Commitment letter has been issued</li>
+                      <li>Borrower has been notified</li>
+                      <li>Ready to create closing checklist</li>
+                    </ul>
+                  </div>
+                  <div className="p-4 bg-white rounded-lg border-2 border-purple-200">
+                    <p className="text-sm font-medium text-purple-900 mb-2">What Happens Next:</p>
+                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                      <li>Add closing checklist items below</li>
+                      <li>Status will automatically update to "Closing Checklist Issued"</li>
+                      <li>Borrower will be notified to complete the checklist</li>
+                      <li>Once all items are complete, update to "Clear to Close"</li>
+                    </ul>
+                  </div>
+                  <div className="pt-4 border-t">
+                    <Button 
+                      variant="default"
+                      className="bg-purple-600 hover:bg-purple-700 text-white w-full text-lg py-6"
+                      onClick={() => {
+                        setShowAddChecklistItem(true);
+                        // Scroll to checklist section after a brief delay
+                        setTimeout(() => {
+                          const checklistSection = document.querySelector('[data-checklist-section]');
+                          if (checklistSection) {
+                            checklistSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }
+                        }, 100);
+                      }}
+                      disabled={isProcessing}
+                    >
+                      <ClipboardCheck className="w-5 h-5 mr-2" />
+                      {closingChecklist.length > 0 ? "Add More Checklist Items" : "Create Closing Checklist Now"}
+                    </Button>
+                    <p className="text-xs text-center text-muted-foreground mt-2">
+                      Click to add your first closing checklist item
+                    </p>
+                  </div>
+                </CardContent>
               </Card>
             )}
 
             {/* Closing Checklist - Operations: Create Checklist */}
             {isOpsView && loan.status === "conditional_commitment_issued" && (
-              <Card className="border-purple-500/50 bg-purple-500/5">
+              <Card className="border-purple-500/50 bg-purple-500/5" data-checklist-section>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-purple-600">
                     <ClipboardCheck className="w-5 h-5" />
@@ -1066,13 +1474,35 @@ export default function LoanDetail() {
                       {closingChecklist.map((item) => (
                         <div 
                           key={item.id} 
-                          className={`flex items-start gap-3 p-3 border rounded-lg ${
-                            item.completed ? 'bg-muted/50' : ''
+                          className={`flex items-start gap-3 p-3 border-2 rounded-lg transition-all ${
+                            item.completed 
+                              ? 'bg-green-50 border-green-200' 
+                              : 'bg-white border-gray-200 hover:border-purple-300'
                           }`}
                         >
                           <Checkbox
-                            checked={item.completed}
-                            disabled
+                            checked={item.completed || false}
+                            onCheckedChange={async (checked) => {
+                              setIsProcessing(true);
+                              try {
+                                await opsApi.updateClosingChecklistItem(loanId!, item.id, { completed: checked as boolean });
+                                toast.success(`Item ${checked ? 'marked as complete' : 'marked as incomplete'}`);
+                                await loadLoanData();
+                              } catch (error: any) {
+                                if (error.status === 401) {
+                                  toast.error("Your session has expired. Please refresh the page and log in again.");
+                                  // Reload the page to trigger re-authentication
+                                  setTimeout(() => {
+                                    window.location.reload();
+                                  }, 2000);
+                                } else {
+                                  toast.error(error.message || "Failed to update item");
+                                }
+                              } finally {
+                                setIsProcessing(false);
+                              }
+                            }}
+                            disabled={isProcessing}
                             className="mt-1"
                           />
                           <div className="flex-1">
@@ -1081,28 +1511,121 @@ export default function LoanDetail() {
                                 {item.item_name}
                               </p>
                               {item.required && (
-                                <Badge variant="outline" className="text-xs">Required</Badge>
+                                <Badge variant="outline" className="text-xs bg-amber-50 border-amber-300 text-amber-700">
+                                  Required
+                                </Badge>
+                              )}
+                              {item.completed && (
+                                <Badge variant="outline" className="text-xs bg-green-50 border-green-300 text-green-700">
+                                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                                  Complete
+                                </Badge>
                               )}
                             </div>
                             {item.description && (
                               <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
                             )}
+                            {item.completed && item.completed_by_name && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Completed by {item.completed_by_name}
+                              </p>
+                            )}
                           </div>
                         </div>
                       ))}
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Progress: {closingChecklist.filter((item: any) => item.completed).length} of {closingChecklist.length} items completed
+                          </p>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-purple-600 h-2 rounded-full transition-all"
+                            style={{ 
+                              width: `${(closingChecklist.filter((item: any) => item.completed).length / closingChecklist.length) * 100}%` 
+                            }}
+                          ></div>
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground mb-4">No checklist items yet. Add the first item to create the checklist.</p>
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground mb-4">No checklist items yet. Add the first item to create the checklist.</p>
+                      {loan.status === "conditional_commitment_issued" && closingChecklist.length === 0 && (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                          <p className="text-sm text-amber-800 font-medium mb-2">
+                            ⚠️ Status Update Notice
+                          </p>
+                          <p className="text-xs text-amber-700 mb-3">
+                            After adding your first checklist item, the loan status will automatically update to "Closing Checklist Issued".
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
-                  <Button 
-                    variant="default"
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                    onClick={() => setShowAddChecklistItem(true)}
-                    disabled={isProcessing}
-                  >
-                    <ClipboardCheck className="w-4 h-4 mr-2" />
-                    {closingChecklist.length > 0 ? "Add Checklist Item" : "Create Closing Checklist"}
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button 
+                      variant="default"
+                      className="bg-purple-600 hover:bg-purple-700 text-white flex-1"
+                      onClick={() => setShowAddChecklistItem(true)}
+                      disabled={isProcessing}
+                    >
+                      <ClipboardCheck className="w-4 h-4 mr-2" />
+                      {closingChecklist.length > 0 ? "Add Checklist Item" : "Create Closing Checklist"}
+                    </Button>
+                    {loan.status === "conditional_commitment_issued" && closingChecklist.length > 0 && (
+                      <Button 
+                        variant="outline"
+                        className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                        onClick={async () => {
+                          if (!confirm("The status should have updated automatically. Manually update to 'Closing Checklist Issued' now?")) return;
+                          setIsProcessing(true);
+                          try {
+                            await opsApi.updateStatus(loanId!, "closing_checklist_issued", "Closing checklist issued - manual update");
+                            toast.success("Status updated to Closing Checklist Issued");
+                            await loadLoanData();
+                          } catch (error: any) {
+                            toast.error(error.message || "Failed to update status");
+                          } finally {
+                            setIsProcessing(false);
+                          }
+                        }}
+                        disabled={isProcessing}
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Update Status to "Closing Checklist Issued"
+                      </Button>
+                    )}
+                    {closingChecklist.length > 0 && closingChecklist.filter((item: any) => !item.completed).length > 0 && (
+                      <Button 
+                        variant="outline"
+                        className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                        onClick={async () => {
+                          if (!confirm(`Mark all ${closingChecklist.filter((item: any) => !item.completed).length} remaining items as complete?`)) return;
+                          setIsProcessing(true);
+                          try {
+                            const incompleteItems = closingChecklist.filter((item: any) => !item.completed);
+                            await Promise.all(
+                              incompleteItems.map((item: any) =>
+                                opsApi.updateClosingChecklistItem(loanId!, item.id, { completed: true })
+                              )
+                            );
+                            toast.success(`Marked ${incompleteItems.length} item(s) as complete`);
+                            await loadLoanData();
+                          } catch (error: any) {
+                            toast.error(error.message || "Failed to update items");
+                          } finally {
+                            setIsProcessing(false);
+                          }
+                        }}
+                        disabled={isProcessing}
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        Mark All Complete
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -1190,77 +1713,200 @@ export default function LoanDetail() {
                       </div>
                     )}
                     {isOpsView && closingChecklist.filter((item: any) => item.completed).length === closingChecklist.length && closingChecklist.length > 0 && loan.status === "closing_checklist_issued" && (
-                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-800 font-medium mb-2">
-                          All checklist items are completed. Update the loan status to "Clear to Close" to proceed.
-                        </p>
-                        <Button 
-                          variant="default"
-                          size="sm"
-                          className="bg-blue-600 hover:bg-blue-700"
-                          onClick={async () => {
-                            if (!loanId) return;
-                            setIsProcessing(true);
-                            try {
-                              await opsApi.updateStatus(loanId, "clear_to_close", "All closing checklist items completed");
-                              toast.success("Status updated to Clear to Close");
-                              await loadLoanData();
-                            } catch (error: any) {
-                              toast.error(error.message || "Failed to update status");
-                            } finally {
-                              setIsProcessing(false);
-                            }
-                          }}
-                          disabled={isProcessing}
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-2" />
-                          Mark as Clear to Close
-                        </Button>
-                      </div>
+                      <Card className="border-green-500/50 bg-green-500/5 shadow-lg mt-4">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2 text-green-700 text-base">
+                            <CheckCircle2 className="w-5 h-5" />
+                            All Checklist Items Complete - Ready for Next Step
+                          </CardTitle>
+                          <CardDescription>
+                            All closing checklist items have been completed by the borrower. Proceed to "Clear to Close" status.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="p-4 bg-white rounded-lg border-2 border-green-200 mb-4">
+                            <p className="text-sm font-medium text-green-900 mb-2">✓ Checklist Status:</p>
+                            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                              <li>All {closingChecklist.length} checklist items completed</li>
+                              <li>Loan is ready to proceed to closing</li>
+                              <li>Next step: Mark as "Clear to Close"</li>
+                            </ul>
+                          </div>
+                          <Button 
+                            variant="default"
+                            className="bg-green-600 hover:bg-green-700 text-white w-full text-lg py-6"
+                            onClick={async () => {
+                              if (!loanId) return;
+                              setIsProcessing(true);
+                              try {
+                                await opsApi.updateStatus(loanId, "clear_to_close", "All closing checklist items completed");
+                                toast.success("Status updated to Clear to Close");
+                                await loadLoanData();
+                              } catch (error: any) {
+                                toast.error(error.message || "Failed to update status");
+                              } finally {
+                                setIsProcessing(false);
+                              }
+                            }}
+                            disabled={isProcessing}
+                          >
+                            {isProcessing ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Updating...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-5 h-5 mr-2" />
+                                Mark as Clear to Close (Next Step)
+                              </>
+                            )}
+                          </Button>
+                        </CardContent>
+                      </Card>
                     )}
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Schedule Closing - Operations Only */}
+            {/* Admin Next Step Action Card - Clear to Close */}
             {loan.status === "clear_to_close" && isOpsView && (
-              <Card className="border-green-500/50 bg-green-500/5">
+              <Card className="border-green-500/50 bg-green-500/5 shadow-lg">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-green-600">
-                    <Calendar className="w-5 h-5" />
-                    Schedule Closing
+                  <CardTitle className="flex items-center gap-2 text-green-700">
+                    <CheckCircle2 className="w-5 h-5" />
+                    Next Step: Schedule Closing or Mark as Funded
                   </CardTitle>
-                  <CardDescription>
-                    This loan is clear to close. Schedule the closing date to proceed to the next stage.
+                  <CardDescription className="text-base">
+                    This loan is clear to close. Schedule the closing date or mark as funded if closing has already occurred.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  {loan.closing_scheduled_date ? (
-                    <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Closing scheduled for: <strong>{new Date(loan.closing_scheduled_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-white rounded-lg border-2 border-green-200">
+                    <p className="text-sm font-medium text-green-900 mb-2">Current Status:</p>
+                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                      <li>All closing checklist items completed</li>
+                      <li>Loan is clear to close</li>
+                      <li>Ready for closing scheduling or funding</li>
+                    </ul>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {loan.closing_scheduled_date ? (
+                      <div className="p-4 bg-white rounded-lg border-2 border-green-200">
+                        <p className="text-sm font-medium text-green-900 mb-2">✓ Closing Scheduled</p>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          {new Date(loan.closing_scheduled_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                        <Button 
+                          variant="outline"
+                          onClick={() => setShowScheduleClosing(true)}
+                          disabled={isProcessing}
+                          className="w-full"
+                        >
+                          <Calendar className="w-4 h-4 mr-2" />
+                          Change Date
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-white rounded-lg border-2 border-green-200">
+                        <p className="text-sm font-medium text-green-900 mb-2">Schedule Closing</p>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          Set the closing date to proceed to the next stage.
+                        </p>
+                        <Button 
+                          variant="default"
+                          className="bg-green-600 hover:bg-green-700 text-white w-full"
+                          onClick={() => setShowScheduleClosing(true)}
+                          disabled={isProcessing}
+                        >
+                          <Calendar className="w-4 h-4 mr-2" />
+                          Schedule Closing Date
+                        </Button>
+                      </div>
+                    )}
+                    <div className="p-4 bg-white rounded-lg border-2 border-green-200">
+                      <p className="text-sm font-medium text-green-900 mb-2">Mark as Funded</p>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        If closing has already occurred, mark the loan as funded.
+                      </p>
+                      <Button 
+                        variant="default"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white w-full"
+                        onClick={() => setShowFundLoan(true)}
+                        disabled={isProcessing}
+                      >
+                        <DollarSign className="w-4 h-4 mr-2" />
+                        Mark as Funded
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Admin Next Step Action Card - Closing Scheduled */}
+            {loan.status === "closing_scheduled" && isOpsView && (
+              <Card className="border-blue-500/50 bg-blue-500/5 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-blue-700">
+                    <Calendar className="w-5 h-5" />
+                    Next Step: Mark as Funded
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Closing has been scheduled. After closing occurs, mark the loan as funded to complete the process.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-white rounded-lg border-2 border-blue-200">
+                    <p className="text-sm font-medium text-blue-900 mb-2">Current Status:</p>
+                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                      <li>Closing scheduled for: <strong>{loan.closing_scheduled_date ? new Date(loan.closing_scheduled_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Date not set'}</strong></li>
+                      <li>Borrower has been notified</li>
+                      <li>Ready to mark as funded after closing</li>
+                    </ul>
+                  </div>
+                  <div className="p-4 bg-white rounded-lg border-2 border-blue-200">
+                    <p className="text-sm font-medium text-blue-900 mb-2">What's Next:</p>
+                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                      <li>Wait for closing to occur on the scheduled date</li>
+                      <li>After closing, mark the loan as funded</li>
+                      <li>Enter the funded amount and date</li>
+                      <li>This will complete the loan process</li>
+                    </ul>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="p-4 bg-white rounded-lg border-2 border-blue-200">
+                      <p className="text-sm font-medium text-blue-900 mb-2">Update Closing Date</p>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Change the scheduled closing date if needed.
                       </p>
                       <Button 
                         variant="outline"
                         onClick={() => setShowScheduleClosing(true)}
                         disabled={isProcessing}
+                        className="w-full"
                       >
                         <Calendar className="w-4 h-4 mr-2" />
-                        Change Closing Date
+                        Change Date
                       </Button>
                     </div>
-                  ) : (
-                    <Button 
-                      variant="default"
-                      className="bg-green-600 hover:bg-green-700 text-white w-full"
-                      onClick={() => setShowScheduleClosing(true)}
-                      disabled={isProcessing}
-                    >
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Schedule Closing Date
-                    </Button>
-                  )}
+                    <div className="p-4 bg-white rounded-lg border-2 border-emerald-200">
+                      <p className="text-sm font-medium text-emerald-900 mb-2">Mark as Funded</p>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Mark the loan as funded after closing has occurred.
+                      </p>
+                      <Button 
+                        variant="default"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white w-full"
+                        onClick={() => setShowFundLoan(true)}
+                        disabled={isProcessing}
+                      >
+                        <DollarSign className="w-4 h-4 mr-2" />
+                        Mark as Funded (Final Step)
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}

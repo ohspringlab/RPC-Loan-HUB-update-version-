@@ -71,14 +71,14 @@ router.get('/:id', authenticate, async (req, res, next) => {
       ORDER BY lsh.created_at DESC
     `, [req.params.id]);
 
-    // Get needs list with folder status
+    // Get needs list with folder status - deduplicate by getting the most recent item per document_type
     const needsList = await db.query(`
-      SELECT nli.*, 
+      SELECT DISTINCT ON (nli.document_type, nli.folder_name) nli.*, 
              (SELECT COUNT(*) FROM documents d WHERE d.needs_list_item_id = nli.id) as document_count,
              (SELECT MAX(uploaded_at) FROM documents d WHERE d.needs_list_item_id = nli.id) as last_upload
       FROM needs_list_items nli
       WHERE nli.loan_id = $1
-      ORDER BY nli.required DESC, nli.folder_name, nli.created_at
+      ORDER BY nli.document_type, nli.folder_name, nli.created_at DESC, nli.required DESC
     `, [req.params.id]);
 
     // Get documents grouped by folder

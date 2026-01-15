@@ -252,6 +252,11 @@ export const opsApi = {
       body: JSON.stringify({ status, notes }),
     }),
 
+  cleanupNeedsList: (loanId: string) =>
+    apiRequest<{ message: string; removed: number }>(`/operations/loan/${loanId}/cleanup-needs-list`, {
+      method: 'POST',
+    }),
+
   approveQuote: (id: string) =>
     apiRequest<{ message: string; quote: any; termSheetUrl: string }>(`/operations/loan/${id}/approve-quote`, {
       method: 'POST',
@@ -321,6 +326,22 @@ export const opsApi = {
   deleteClosingChecklistItem: (loanId: string, itemId: string) =>
     apiRequest(`/operations/loan/${loanId}/closing-checklist/${itemId}`, {
       method: 'DELETE',
+    }),
+};
+
+// Contact API
+export const contactApi = {
+  submit: (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    subject: string;
+    message: string;
+    loanType?: string;
+  }) =>
+    apiRequest<{ message: string; contactId: string }>('/contact', {
+      method: 'POST',
+      body: JSON.stringify(data),
     }),
 };
 
@@ -515,6 +536,34 @@ export interface PipelineStats {
   recentUploads: number;
   monthlyFunded: number;
   monthlyVolume: number;
+  pipelineProfit?: {
+    totalPotential: number;
+    weightedProfit: number;
+    openDeals: number;
+    avgProfitPerDeal: number;
+    wonThisMonth: number;
+    dealsWonThisMonth: number;
+  };
+  forecast?: {
+    thisQuarter: number;
+    pipeline: number;
+    expectedProfit: number;
+  };
+  needsAttention?: {
+    staleLoans: number;
+    pendingDocs: number;
+    pendingQuotes: number;
+    total: number;
+  };
+  recentActivity?: Array<{
+    id: string;
+    loanNumber: string;
+    type: string;
+    description: string;
+    timestamp: string;
+    borrowerName: string;
+    property: string;
+  }>;
 }
 
 export interface StatusOption {

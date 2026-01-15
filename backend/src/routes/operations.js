@@ -145,6 +145,60 @@ router.get('/stats', async (req, res, next) => {
       AND EXTRACT(MONTH FROM funded_date) = EXTRACT(MONTH FROM CURRENT_DATE)
     `);
 
+    // Calculate profit metrics
+    // Profit estimation: origination fees (1-1.5% of loan amount) + interest spread
+    // For simplicity, using 2% of loan amount as estimated profit per loan
+    const openLoans = await db.query(`
+      SELECT 
+        COUNT(*) as count,
+        SUM(loan_amount) as total_amount,
+        AVG(loan_amount) as avg_amount
+      FROM loan_requests 
+      WHERE status NOT IN ('funded', 'new_request')
+    `);
+
+    const fundedLoansProfit = await db.query(`
+      SELECT 
+        COUNT(*) as count,
+        SUM(loan_amount * 0.02) as estimated_profit
+      FROM loan_requests 
+      WHERE status = 'funded' 
+      AND funded_date IS NOT NULL
+      AND EXTRACT(YEAR FROM funded_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+      AND EXTRACT(MONTH FROM funded_date) = EXTRACT(MONTH FROM CURRENT_DATE)
+    `);
+
+    // Calculate weighted profit (assuming 70% probability for active loans)
+    const openLoansTotal = parseFloat(openLoans.rows[0]?.total_amount || 0) || 0;
+    const weightedProfit = openLoansTotal * 0.02 * 0.7;
+
+    // Get recent activity (new loans in last 7 days)
+    const recentActivity = await db.query(`
+      SELECT 
+        lr.id,
+        lr.loan_number,
+        lr.status,
+        lr.created_at,
+        u.full_name as borrower_name,
+        lr.property_address,
+        lr.property_city,
+        lr.property_state
+      FROM loan_requests lr
+      JOIN users u ON lr.user_id = u.id
+      WHERE lr.created_at > NOW() - INTERVAL '7 days'
+      ORDER BY lr.created_at DESC
+      LIMIT 10
+    `);
+
+    // Get needs attention items
+    const [pendingDocsRes, pendingQuotesRes] = await Promise.all([
+      db.query(`SELECT COUNT(*) FROM needs_list_items WHERE status = 'pending'`),
+      db.query(`SELECT COUNT(*) FROM loan_requests WHERE status = 'quote_requested'`)
+    ]);
+
+    const pendingDocsCount = parseInt(pendingDocsRes.rows[0].count || 0);
+    const pendingQuotesCount = parseInt(pendingQuotesRes.rows[0].count || 0);
+
     res.json({
       byStatus: stats.rows,
       totalLoans: parseInt(totalLoans.rows[0].count),
@@ -153,7 +207,39 @@ router.get('/stats', async (req, res, next) => {
       staleLoans: parseInt(staleLoans.rows[0].count),
       recentUploads: parseInt(recentUploads.rows[0].count),
       monthlyFunded: parseInt(monthlyVolume.rows[0].count || 0),
-      monthlyVolume: parseFloat(monthlyVolume.rows[0].amount || 0)
+      monthlyVolume: parseFloat(monthlyVolume.rows[0].amount || 0),
+      // Profit metrics
+      pipelineProfit: {
+        totalPotential: openLoansTotal * 0.02,
+        weightedProfit: weightedProfit,
+        openDeals: parseInt(openLoans.rows[0]?.count || 0) || 0,
+        avgProfitPerDeal: (parseFloat(openLoans.rows[0]?.avg_amount || 0) || 0) * 0.02,
+        wonThisMonth: parseFloat(fundedLoansProfit.rows[0]?.estimated_profit || 0) || 0,
+        dealsWonThisMonth: parseInt(fundedLoansProfit.rows[0]?.count || 0) || 0
+      },
+      // Forecast (simplified - based on open loans)
+      forecast: {
+        thisQuarter: weightedProfit * 3, // Estimate for quarter
+        pipeline: openLoansTotal * 0.7, // Weighted pipeline value
+        expectedProfit: weightedProfit
+      },
+      // Needs attention
+      needsAttention: {
+        staleLoans: parseInt(staleLoans.rows[0].count),
+        pendingDocs: pendingDocsCount,
+        pendingQuotes: pendingQuotesCount,
+        total: parseInt(staleLoans.rows[0].count) + pendingDocsCount + pendingQuotesCount
+      },
+      // Recent activity
+      recentActivity: recentActivity.rows.map(row => ({
+        id: row.id,
+        loanNumber: row.loan_number,
+        type: 'new_loan',
+        description: `New loan: ${row.borrower_name}`,
+        timestamp: row.created_at,
+        borrowerName: row.borrower_name,
+        property: `${row.property_address}, ${row.property_city}, ${row.property_state}`
+      }))
     });
   } catch (error) {
     next(error);
@@ -438,6 +524,54 @@ router.post('/loan/:id/needs-list', [
     `, [notificationId4, loan.rows[0].user_id, req.params.id, 'Document Requested', `New document requested for loan ${loan.rows[0].loan_number}: ${documentType}`]);
 
     res.status(201).json({ item: result.rows[0] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Clean up duplicate needs list items for a loan
+router.post('/loan/:id/cleanup-needs-list', authenticate, async (req, res, next) => {
+  try {
+    const loanId = req.params.id;
+    
+    // Find duplicates - keep the most recent one per document_type and folder_name
+    const duplicates = await db.query(`
+      WITH ranked_items AS (
+        SELECT 
+          id,
+          loan_id,
+          document_type,
+          folder_name,
+          ROW_NUMBER() OVER (
+            PARTITION BY loan_id, document_type, folder_name 
+            ORDER BY created_at DESC, document_count DESC
+          ) as rn,
+          (SELECT COUNT(*) FROM documents d WHERE d.needs_list_item_id = nli.id) as document_count
+        FROM needs_list_items nli
+        WHERE loan_id = $1
+      )
+      SELECT id FROM ranked_items WHERE rn > 1
+    `, [loanId]);
+    
+    if (duplicates.rows.length === 0) {
+      return res.json({ message: 'No duplicates found', removed: 0 });
+    }
+    
+    // Delete duplicate items (keep the first one per group)
+    const duplicateIds = duplicates.rows.map(row => row.id);
+    await db.query(`
+      DELETE FROM needs_list_items 
+      WHERE id = ANY($1::uuid[])
+    `, [duplicateIds]);
+    
+    await logAudit(req.user.id, 'NEEDS_LIST_CLEANED', 'loan', loanId, req, {
+      removedCount: duplicateIds.length
+    });
+    
+    res.json({ 
+      message: `Removed ${duplicateIds.length} duplicate needs list item(s)`,
+      removed: duplicateIds.length
+    });
   } catch (error) {
     next(error);
   }
@@ -750,19 +884,29 @@ router.post('/loan/:id/closing-checklist', [
       placeholders.push(`$${++paramIndex}`);
     }
 
+    // Check if this is the first checklist item BEFORE inserting
+    // This ensures we only update status when adding the very first item
+    const existingItems = await db.query(`
+      SELECT COUNT(*) as count FROM closing_checklist_items WHERE loan_id = $1
+    `, [req.params.id]);
+    
+    const isFirstItem = parseInt(existingItems.rows[0].count) === 0;
+    
+    // Also check current loan status to ensure we only update if still in conditional_commitment_issued
+    const loanCheck = await db.query(`
+      SELECT status FROM loan_requests WHERE id = $1
+    `, [req.params.id]);
+    
+    const shouldUpdateStatus = isFirstItem && loanCheck.rows[0]?.status === 'conditional_commitment_issued';
+
     const result = await db.query(`
       INSERT INTO closing_checklist_items (${columns.join(', ')})
       VALUES (${placeholders.join(', ')})
       RETURNING *
     `, values);
 
-    // Check if this is the first checklist item - if so, update loan status to closing_checklist_issued
-    const existingItems = await db.query(`
-      SELECT COUNT(*) as count FROM closing_checklist_items WHERE loan_id = $1
-    `, [req.params.id]);
-    
-    if (parseInt(existingItems.rows[0].count) === 1) {
-      // First item - update status to closing_checklist_issued
+    // Update loan status if this is the first item and loan is still in conditional_commitment_issued
+    if (shouldUpdateStatus) {
       await db.query(`
         UPDATE loan_requests SET 
           status = 'closing_checklist_issued',
@@ -799,10 +943,11 @@ router.post('/loan/:id/closing-checklist', [
 });
 
 // Update closing checklist item
-router.put('/loan/:id/closing-checklist/:itemId', [
+// Note: authenticate and requireOps are already applied via router.use() at the top
+router.put('/loan/:id/closing-checklist/:itemId', 
   body('completed').optional().isBoolean(),
-  body('notes').optional()
-], async (req, res, next) => {
+  body('notes').optional(),
+  async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {

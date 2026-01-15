@@ -258,13 +258,14 @@ router.get('/needs-list/:loanId', authenticate, async (req, res, next) => {
     const now = new Date();
     const twentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000);
 
+    // Deduplicate needs list items - get the most recent one per document_type and folder_name
     const result = await db.query(`
-      SELECT nli.*, 
+      SELECT DISTINCT ON (nli.document_type, nli.folder_name) nli.*, 
              (SELECT COUNT(*) FROM documents d WHERE d.needs_list_item_id = nli.id) as document_count,
              (SELECT MAX(uploaded_at) FROM documents d WHERE d.needs_list_item_id = nli.id) as last_upload
       FROM needs_list_items nli
       WHERE nli.loan_id = $1
-      ORDER BY nli.required DESC, nli.folder_name, nli.created_at
+      ORDER BY nli.document_type, nli.folder_name, nli.created_at DESC, nli.required DESC
     `, [req.params.loanId]);
 
     // Add folder color to each item
