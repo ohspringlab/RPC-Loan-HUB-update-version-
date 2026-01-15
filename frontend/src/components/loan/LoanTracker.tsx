@@ -74,13 +74,14 @@ interface LoanTrackerProps {
 
 export function LoanTracker({ currentStatus, compact = false }: LoanTrackerProps) {
   const currentIndex = steps.findIndex(s => s.id === currentStatus);
+  const isFunded = currentStatus === "funded";
 
   if (compact) {
     return (
       <div className="flex items-center gap-1 overflow-x-auto pb-2">
         {steps.map((step, index) => {
-          const isCompleted = index < currentIndex;
-          const isCurrent = index === currentIndex;
+          const isCompleted = isFunded ? index <= currentIndex : index < currentIndex;
+          const isCurrent = !isFunded && index === currentIndex;
           
           return (
             <div key={step.id} className="flex items-center">
@@ -108,8 +109,8 @@ export function LoanTracker({ currentStatus, compact = false }: LoanTrackerProps
   return (
     <div className="space-y-0">
       {steps.map((step, index) => {
-        const isCompleted = index < currentIndex;
-        const isCurrent = index === currentIndex;
+        const isCompleted = isFunded ? index <= currentIndex : index < currentIndex;
+        const isCurrent = !isFunded && index === currentIndex;
         const Icon = step.icon;
 
         return (
@@ -149,14 +150,15 @@ export function LoanTracker({ currentStatus, compact = false }: LoanTrackerProps
 
 export function LoanTrackerHorizontal({ currentStatus }: { currentStatus: LoanStatus }) {
   const currentIndex = steps.findIndex(s => s.id === currentStatus);
+  const isFunded = currentStatus === "funded";
   const displaySteps = steps.slice(0, 8); // Show first 8 steps for horizontal
 
   return (
     <div className="w-full overflow-x-auto">
       <div className="flex items-start min-w-max gap-4 p-4">
         {displaySteps.map((step, index) => {
-          const isCompleted = index < currentIndex;
-          const isCurrent = index === currentIndex;
+          const isCompleted = isFunded ? index <= currentIndex : index < currentIndex;
+          const isCurrent = !isFunded && index === currentIndex;
           const Icon = step.icon;
 
           return (
@@ -198,7 +200,8 @@ export function LoanTrackerHorizontal({ currentStatus }: { currentStatus: LoanSt
 // Domino's Pizza-style tracker - prominent horizontal progress tracker
 export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatus }) {
   const currentIndex = steps.findIndex(s => s.id === currentStatus);
-  const progressPercentage = ((currentIndex + 1) / steps.length) * 100;
+  const isFunded = currentStatus === "funded";
+  const progressPercentage = isFunded ? 100 : ((currentIndex + 1) / steps.length) * 100;
   const currentStep = currentIndex >= 0 ? steps[currentIndex] : null;
   const CurrentIcon = currentStep?.icon;
 
@@ -217,8 +220,9 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
       <div className="relative w-full overflow-x-auto pb-4">
         <div className="flex items-start min-w-max px-2">
           {steps.map((step, index) => {
-            const isCompleted = index < currentIndex;
-            const isCurrent = index === currentIndex;
+            // If funded, all steps including the last one are completed
+            const isCompleted = isFunded ? index <= currentIndex : index < currentIndex;
+            const isCurrent = !isFunded && index === currentIndex;
             const Icon = step.icon;
 
             return (
@@ -256,7 +260,7 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
                   )}>
                     <p className={cn(
                       "font-semibold text-xs leading-tight mb-1",
-                      isCompleted && "text-success",
+                      isCompleted && "text-success font-bold",
                       isCurrent && "text-gold-600 font-bold",
                       !isCompleted && !isCurrent && "text-muted-foreground"
                     )}>
@@ -283,7 +287,7 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
                   <div
                     className={cn(
                       "h-0.5 mx-2 transition-all duration-300",
-                      index < currentIndex ? "bg-success w-16" : "bg-muted w-8"
+                      isCompleted ? "bg-success w-16" : "bg-muted w-8"
                     )}
                   />
                 )}
@@ -321,12 +325,15 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
 // Full vertical tracker for loan detail page
 export function LoanTrackerFull({ currentStatus }: { currentStatus: LoanStatus }) {
   const currentIndex = steps.findIndex(s => s.id === currentStatus);
+  // If status is "funded" (final step), treat it as completed
+  const isFunded = currentStatus === "funded";
 
   return (
     <div className="relative">
       {steps.map((step, index) => {
-        const isCompleted = index < currentIndex;
-        const isCurrent = index === currentIndex;
+        // If funded, all steps including the last one are completed
+        const isCompleted = isFunded ? index <= currentIndex : index < currentIndex;
+        const isCurrent = !isFunded && index === currentIndex;
         const Icon = step.icon;
 
         return (
@@ -362,6 +369,7 @@ export function LoanTrackerFull({ currentStatus }: { currentStatus: LoanStatus }
             )}>
               <p className={cn(
                 "font-medium text-sm",
+                isCompleted && "text-success",
                 isCurrent && "text-gold-600"
               )}>
                 {step.label}

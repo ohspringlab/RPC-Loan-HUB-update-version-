@@ -495,7 +495,18 @@ export default function LoanDetail() {
             )}
 
             {/* Show document upload section if term sheet is signed but status hasn't updated yet */}
-            {loan.term_sheet_signed && loan.status !== "needs_list_sent" && loan.status !== "needs_list_complete" && (
+            {loan.term_sheet_signed && 
+             loan.status !== "needs_list_sent" && 
+             loan.status !== "needs_list_complete" &&
+             loan.status !== "submitted_to_underwriting" &&
+             loan.status !== "appraisal_ordered" &&
+             loan.status !== "appraisal_received" &&
+             loan.status !== "conditionally_approved" &&
+             loan.status !== "conditional_commitment_issued" &&
+             loan.status !== "closing_checklist_issued" &&
+             loan.status !== "clear_to_close" &&
+             loan.status !== "closing_scheduled" &&
+             loan.status !== "funded" && (
               <Card className="border-green-500/50 bg-green-500/5 shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-green-700">
