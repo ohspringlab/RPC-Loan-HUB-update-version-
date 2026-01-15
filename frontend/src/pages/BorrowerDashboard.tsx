@@ -361,15 +361,12 @@ export default function BorrowerDashboard() {
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            const showCompleted = statusFilter === 'all' || statusFilter === 'funded';
-                            setStatusFilter(showCompleted ? 'active' : 'all');
+                            // Toggle between 'active' (hide completed) and 'all' (show all)
+                            setStatusFilter(statusFilter === 'active' ? 'all' : 'active');
                           }}
                           className="text-xs"
                         >
-                          {(() => {
-                            const showCompleted = statusFilter === 'all' || statusFilter === 'funded';
-                            return showCompleted ? 'Hide Completed' : 'Show All';
-                          })()}
+                          {statusFilter === 'active' ? 'Show All' : 'Hide Completed'}
                         </Button>
                       </div>
                     </div>
@@ -408,11 +405,10 @@ export default function BorrowerDashboard() {
                     })()}
                     <div className="grid gap-4">
                       {(() => {
-                        // Filter out funded loans by default in overview (unless user wants to see all)
-                        const showCompleted = statusFilter === 'all' || statusFilter === 'funded';
-                        const filteredLoans = showCompleted 
-                          ? loans 
-                          : loans.filter(l => l.status !== 'funded');
+                        // Filter out funded loans when statusFilter is 'active', show all when 'all'
+                        const filteredLoans = statusFilter === 'active'
+                          ? loans.filter(l => l.status !== 'funded')
+                          : loans;
                         
                         if (filteredLoans.length === 0) {
                           return (
