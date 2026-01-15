@@ -327,7 +327,8 @@ router.post('/login', loginValidation, async (req, res, next) => {
 
     const user = result.rows[0];
 
-    if (!user.is_active) {
+    // Only block if is_active is explicitly false (not null)
+    if (user.is_active === false) {
       return res.status(401).json({ 
         error: 'Account is deactivated',
         message: 'Your account has been deactivated. Please contact support.'
@@ -386,7 +387,8 @@ router.get('/me', authenticate, async (req, res) => {
       fullName: req.user.full_name,
       phone: req.user.phone,
       role: req.user.role,
-      email_verified: req.user.email_verified || false
+      // email_verified is a timestamp, convert to boolean for frontend
+      email_verified: !!req.user.email_verified
     },
     profile: profile.rows[0] || null,
     loanCount: parseInt(loanCount.rows[0].count)
@@ -537,9 +539,9 @@ router.post('/verify-email', async (req, res, next) => {
 
     const userId = tokenCheck.rows[0].user_id;
 
-    // Mark email as verified
+    // Mark email as verified (email_verified is a timestamp column)
     await db.query(`
-      UPDATE users SET email_verified = true, updated_at = NOW()
+      UPDATE users SET email_verified = NOW(), updated_at = NOW()
       WHERE id = $1
     `, [userId]);
 

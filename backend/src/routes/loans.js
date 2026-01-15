@@ -82,9 +82,10 @@ router.get('/:id', authenticate, async (req, res, next) => {
     `, [req.params.id]);
 
     // Get documents grouped by folder
+    // Note: documents table has 'name' instead of 'file_name', and 'file_url' instead of separate file fields
     const documents = await db.query(`
-      SELECT id, file_name, original_name, file_type, file_size, folder_name, uploaded_at, needs_list_item_id
-      FROM documents WHERE loan_id = $1 ORDER BY folder_name, uploaded_at DESC
+      SELECT id, name as file_name, name as original_name, category, file_url, status, uploaded_at, needs_list_item_id
+      FROM documents WHERE loan_id = $1 ORDER BY category, uploaded_at DESC
     `, [req.params.id]);
 
     // Get payments
@@ -673,7 +674,7 @@ router.get('/:id/closing-checklist', authenticate, async (req, res, next) => {
       LEFT JOIN users u1 ON cci.created_by = u1.id
       LEFT JOIN users u2 ON cci.completed_by = u2.id
       WHERE cci.loan_id = $1
-      ORDER BY cci.category, cci.created_at
+      ORDER BY cci.created_at
     `, [req.params.id]);
 
     res.json({ checklist: result.rows });
@@ -752,28 +753,26 @@ async function createDocumentFoldersForLoan(loanId) {
   ];
 
   // Create a placeholder needs_list_item for each folder to make it appear in the UI
-  // Check which optional columns exist
-  // Default category and loan_type to true since errors indicate they're required
+  // Check which columns exist (some are NOT NULL and must be included)
   let hasNameColumn = false;
-  let hasCategoryColumn = true; // Default to true - error says it's required
-  let hasLoanTypeColumn = true; // Default to true - error says it's required
+  let hasCategoryColumn = false;
+  let hasLoanTypeColumn = false;
+  let hasIsRequiredColumn = false;
   
   try {
     const columns = await db.query(`
       SELECT column_name 
       FROM information_schema.columns 
       WHERE table_name = 'needs_list_items' 
-      AND column_name IN ('name', 'category', 'loan_type')
+      AND column_name IN ('name', 'category', 'loan_type', 'is_required')
     `);
     const columnNames = columns.rows.map(row => row.column_name);
     hasNameColumn = columnNames.includes('name');
     hasCategoryColumn = columnNames.includes('category');
     hasLoanTypeColumn = columnNames.includes('loan_type');
+    hasIsRequiredColumn = columnNames.includes('is_required');
   } catch (error) {
     console.error('[createDocumentFoldersForLoan] Error checking columns:', error);
-    // If check fails, assume category and loan_type are required (based on error message)
-    hasCategoryColumn = true;
-    hasLoanTypeColumn = true;
   }
 
   // Get loan to determine loan_type
@@ -798,6 +797,7 @@ async function createDocumentFoldersForLoan(loanId) {
       const placeholders = ['$1'];
       let paramIndex = 1;
 
+      // Include NOT NULL columns if they exist
       if (hasNameColumn) {
         columns.push('name');
         values.push(folder.name);
@@ -813,7 +813,13 @@ async function createDocumentFoldersForLoan(loanId) {
         values.push(loanType);
         placeholders.push(`$${++paramIndex}`);
       }
+      if (hasIsRequiredColumn) {
+        columns.push('is_required');
+        values.push(false); // Folders are not required by default
+        placeholders.push(`$${++paramIndex}`);
+      }
       
+      // Include standard columns
       columns.push('document_type', 'folder_name', 'description', 'status', 'required');
       values.push(`Folder: ${folder.name}`, folder.name, folder.description, 'pending', false);
       placeholders.push(`$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`);

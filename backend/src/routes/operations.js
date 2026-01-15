@@ -686,7 +686,7 @@ router.get('/loan/:id/closing-checklist', async (req, res, next) => {
       LEFT JOIN users u1 ON cci.created_by = u1.id
       LEFT JOIN users u2 ON cci.completed_by = u2.id
       WHERE cci.loan_id = $1
-      ORDER BY cci.category, cci.created_at
+      ORDER BY cci.created_at
     `, [req.params.id]);
 
     res.json({ checklist: result.rows });
