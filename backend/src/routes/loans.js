@@ -591,14 +591,12 @@ router.post('/:id/complete-needs-list', authenticate, async (req, res, next) => 
       VALUES ($1, $2, 'needs_list_complete', 7, $3, 'Borrower submitted all required documents')
     `, [statusHistoryId, req.params.id, req.user.id]);
 
-    // Notify operations team
-    const notificationId = require('uuid').v4();
+    // Notify operations team - generate unique ID for each notification
     await db.query(`
       INSERT INTO notifications (id, user_id, loan_id, type, title, message)
-      SELECT $1, id, $2, 'status_update', $3, $4
+      SELECT gen_random_uuid(), id, $1, 'status_update', $2, $3
       FROM users WHERE role IN ('operations', 'admin')
     `, [
-      notificationId,
       req.params.id,
       'Documents Submitted',
       `${req.user.full_name} has submitted all required documents for loan ${loan.loan_number}. Ready for review.`

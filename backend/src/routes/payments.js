@@ -371,10 +371,11 @@ router.post('/confirm', authenticate, async (req, res, next) => {
       WHERE id = $2
     `, [paymentIntentId, loanId]);
 
+    const statusHistoryId = require('uuid').v4();
     await db.query(`
-      INSERT INTO loan_status_history (loan_id, status, step, changed_by, notes)
-      VALUES ($1, 'appraisal_paid', 8, $2, 'Appraisal payment completed')
-    `, [loanId, req.user.id]);
+      INSERT INTO loan_status_history (id, loan_id, status, step, changed_by, notes)
+      VALUES ($1, $2, 'appraisal_paid', 8, $3, 'Appraisal payment completed')
+    `, [statusHistoryId, loanId, req.user.id]);
 
     await logAudit(req.user.id, 'PAYMENT_COMPLETED', 'payment', loanId, req, {
       paymentType: 'appraisal',
