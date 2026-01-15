@@ -856,6 +856,79 @@ export default function LoanDetail() {
               </Card>
             )}
 
+            {/* Appraisal Ordered - Payment Complete - Borrower Waiting */}
+            {loan.status === "appraisal_ordered" && loan.appraisal_paid && !isOpsView && (
+              <Card className="border-blue-500/50 bg-blue-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-blue-600">
+                    <Building2 className="w-5 h-5" />
+                    Appraisal Payment Received
+                  </CardTitle>
+                  <CardDescription>
+                    Your appraisal payment has been received. The appraisal is now in progress.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Thank you for your payment. The appraisal for your property is now being conducted. 
+                      You will be notified once the appraisal is complete and received by our team.
+                    </p>
+                    <p className="text-xs text-muted-foreground italic">
+                      Typical appraisal time: 5-10 business days. We'll notify you as soon as the appraisal is received.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Appraisal Ordered - Payment Complete - Operations: Mark as Received */}
+            {loan.status === "appraisal_ordered" && loan.appraisal_paid && isOpsView && (
+              <Card className="border-purple-500/50 bg-purple-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-purple-600">
+                    <Building2 className="w-5 h-5" />
+                    Appraisal Payment Received - Mark as Received
+                  </CardTitle>
+                  <CardDescription>
+                    Appraisal payment has been received. Update status when the appraisal is received.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      The borrower has paid the appraisal fee. Once the appraisal report is received, update the status to <strong>"Appraisal Received"</strong> to proceed to the next stage.
+                    </p>
+                    <div className="space-y-2">
+                      <Button
+                        variant="default"
+                        onClick={async () => {
+                          try {
+                            setIsProcessing(true);
+                            await opsApi.updateStatus(loanId!, "appraisal_received", "Appraisal report received and reviewed");
+                            toast.success("Status updated to Appraisal Received");
+                            await loadLoanData();
+                          } catch (error: any) {
+                            toast.error(error.message || "Failed to update status");
+                          } finally {
+                            setIsProcessing(false);
+                          }
+                        }}
+                        disabled={isProcessing}
+                        className="w-full"
+                      >
+                        <Building2 className="w-4 h-4 mr-2" />
+                        {isProcessing ? "Updating..." : "Mark Appraisal as Received (Next Step)"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground text-center">
+                        This will move the loan to "Appraisal Received" status, and the borrower will be notified.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Full Application Form */}
             {loan.status === "needs_list_complete" && !loan.full_application_completed && (
               <FullApplicationForm 

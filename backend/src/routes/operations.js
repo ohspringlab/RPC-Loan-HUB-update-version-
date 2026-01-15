@@ -711,13 +711,46 @@ router.post('/loan/:id/closing-checklist', [
     const { itemName, description, category, required } = req.body;
     const checklistId = require('uuid').v4();
 
+    // Check which columns exist in closing_checklist_items table
+    let hasCategoryColumn = false;
+    let hasRequiredColumn = false;
+    try {
+      const columnCheck = await db.query(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'closing_checklist_items'
+        AND column_name IN ('category', 'required')
+      `);
+      const columnNames = columnCheck.rows.map(row => row.column_name.toLowerCase());
+      hasCategoryColumn = columnNames.includes('category');
+      hasRequiredColumn = columnNames.includes('required');
+    } catch (error) {
+      console.warn('[Closing Checklist] Error checking columns:', error);
+    }
+
+    // Build INSERT statement dynamically based on available columns
+    const columns = ['id', 'loan_id', 'item_name', 'description', 'created_by'];
+    const values = [checklistId, req.params.id, itemName, description || null, req.user.id];
+    const placeholders = ['$1', '$2', '$3', '$4', '$5'];
+    let paramIndex = 5;
+
+    if (hasCategoryColumn) {
+      columns.push('category');
+      values.push(category || 'general');
+      placeholders.push(`$${++paramIndex}`);
+    }
+    if (hasRequiredColumn) {
+      columns.push('required');
+      values.push(required !== false);
+      placeholders.push(`$${++paramIndex}`);
+    }
+
     const result = await db.query(`
-      INSERT INTO closing_checklist_items (
-        id, loan_id, item_name, description, category, required, created_by
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO closing_checklist_items (${columns.join(', ')})
+      VALUES (${placeholders.join(', ')})
       RETURNING *
-    `, [checklistId, req.params.id, itemName, description || null, category || 'general', required !== false, req.user.id]);
+    `, values);
 
     // Check if this is the first checklist item - if so, update loan status to closing_checklist_issued
     const existingItems = await db.query(`
