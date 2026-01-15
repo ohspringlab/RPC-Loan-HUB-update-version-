@@ -612,7 +612,7 @@ export default function LoanDetail() {
 
             {/* Debug card - Show loan status info in development mode */}
             {import.meta.env.DEV && (
-              <Card className="border-gray-300 bg-gray-50">
+              <Card key={`debug-${loan.status}-${loan.id}`} className="border-gray-300 bg-gray-50">
                 <CardHeader>
                   <CardTitle className="text-sm">🔍 Debug Info (Development Only)</CardTitle>
                 </CardHeader>
@@ -631,7 +631,7 @@ export default function LoanDetail() {
                   )}
                   <p><strong>Is Ops View:</strong> {isOpsView ? '✅ Yes' : '❌ No'}</p>
                   <p><strong>Should Show Sign Card:</strong> {
-                    loan.status === "funded" 
+                    (loan.status === "funded" || loan.status?.toLowerCase() === "funded")
                       ? '❌ NO (Loan Complete)' 
                       : ((loan.status === "soft_quote_issued" || 
                           loan.status === "soft_quote" || 
