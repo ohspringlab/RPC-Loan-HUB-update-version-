@@ -92,11 +92,11 @@ export default function Landing() {
           <div className="absolute inset-0 bg-gradient-to-r from-navy-900/95 via-navy-900/80 to-navy-900/60" />
         </div>
 
-        <div className="container mx-auto px-4 lg:px-8 relative z-10 pt-20">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 mb-6 animate-fade-up">
-              <span className="w-2 h-2 rounded-full bg-gold-400 animate-pulse" />
-              <span className="text-white/80 text-sm">Fast & Flexible Real Estate Financing</span>
+        <div className="container mx-auto px-4 lg:px-8 relative z-10 pt-24">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/30 mb-8 animate-fade-up shadow-lg">
+              <span className="w-2.5 h-2.5 rounded-full bg-gold-400 animate-pulse shadow-gold-glow" />
+              <span className="text-white/90 text-sm font-medium">Fast & Flexible Real Estate Financing</span>
             </div>
             
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white leading-tight mb-6 animate-fade-up" style={{ animationDelay: "0.1s" }}>
@@ -163,26 +163,26 @@ export default function Landing() {
       </section>
 
       {/* Features Section */}
-      <section className="py-24 bg-background">
+      <section className="py-24 bg-gradient-to-b from-background to-muted/30">
         <div className="container mx-auto px-4 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-4">
-              Why Choose RPC?
+          <div className="text-center max-w-2xl mx-auto mb-16 animate-fade-up">
+            <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
+              Why Choose <span className="text-gradient-gold">RPC?</span>
             </h2>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-lg">
               We understand real estate investors because we are real estate investors. Our team brings decades of combined experience to every transaction.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((feature, i) => (
-              <Card key={feature.title} className="group hover:shadow-lg transition-all border-0 bg-card animate-fade-up" style={{ animationDelay: `${i * 0.1}s` }}>
+              <Card key={feature.title} className="group hover:shadow-elegant-lg hover:-translate-y-2 transition-all duration-300 border-2 hover:border-gold-200 bg-card animate-fade-up" style={{ animationDelay: `${i * 0.1}s` }}>
                 <CardContent className="p-6">
-                  <div className="w-12 h-12 rounded-xl bg-gold-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <feature.icon className="w-6 h-6 text-gold-600" />
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-gold-500/20 to-gold-400/10 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:from-gold-500/30 group-hover:to-gold-400/20 transition-all duration-300 border border-gold-200/50">
+                    <feature.icon className="w-7 h-7 text-gold-600" />
                   </div>
-                  <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-                  <p className="text-muted-foreground text-sm">{feature.description}</p>
+                  <h3 className="font-bold text-lg mb-2 text-foreground">{feature.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">{feature.description}</p>
                 </CardContent>
               </Card>
             ))}
@@ -204,25 +204,25 @@ export default function Landing() {
 
           <div className="grid md:grid-cols-2 gap-6">
             {loanTypes.map((loan, i) => (
-              <Card key={loan.title} className="group hover:shadow-xl transition-all overflow-hidden animate-fade-up" style={{ animationDelay: `${i * 0.1}s` }}>
+              <Card key={loan.title} className="group hover:shadow-elegant-lg hover:-translate-y-2 transition-all duration-300 overflow-hidden border-2 hover:border-primary/30 animate-fade-up" style={{ animationDelay: `${i * 0.1}s` }}>
                 <CardContent className="p-0">
                   <div className="flex flex-col md:flex-row">
-                    <div className="w-full md:w-16 bg-navy-800 flex items-center justify-center py-6 md:py-0">
-                      <loan.icon className="w-8 h-8 text-gold-400" />
+                    <div className="w-full md:w-20 bg-gradient-to-br from-navy-800 to-navy-700 flex items-center justify-center py-8 md:py-0 group-hover:from-navy-700 group-hover:to-navy-600 transition-all duration-300">
+                      <loan.icon className="w-10 h-10 text-gold-400 group-hover:scale-110 transition-transform duration-300" />
                     </div>
                     <div className="flex-1 p-6">
-                      <h3 className="font-semibold text-lg mb-2">{loan.title}</h3>
-                      <p className="text-muted-foreground text-sm mb-4">{loan.description}</p>
+                      <h3 className="font-bold text-xl mb-2 text-foreground">{loan.title}</h3>
+                      <p className="text-muted-foreground text-sm mb-4 leading-relaxed">{loan.description}</p>
                       <div className="flex flex-wrap gap-2">
                         {loan.features.map((feature) => (
-                          <span key={feature} className="text-xs px-3 py-1 rounded-full bg-gold-500/10 text-gold-700 font-medium">
+                          <span key={feature} className="text-xs px-3 py-1.5 rounded-full bg-gradient-to-r from-gold-500/15 to-gold-400/10 text-gold-700 font-semibold border border-gold-200/50">
                             {feature}
                           </span>
                         ))}
                       </div>
                     </div>
                     <div className="hidden md:flex items-center px-6">
-                      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-gold-500 group-hover:translate-x-1 transition-all" />
+                      <ChevronRight className="w-6 h-6 text-muted-foreground group-hover:text-gold-500 group-hover:translate-x-2 transition-all duration-300" />
                     </div>
                   </div>
                 </CardContent>

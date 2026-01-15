@@ -350,7 +350,7 @@ export default function AdminDashboard() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-slate-950">
+      <div className="flex min-h-screen w-full dashboard-bg dark">
         <AdminSidebar />
         <SidebarInset className="flex-1">
           <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b border-slate-800 bg-slate-950 px-6">

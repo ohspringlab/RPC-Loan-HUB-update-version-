@@ -171,7 +171,7 @@ export default function BorrowerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen dashboard-bg">
       {/* Email Verification Banner */}
       {user && !user.email_verified && (
         <div className="bg-amber-50 border-b border-amber-200">
@@ -197,14 +197,14 @@ export default function BorrowerDashboard() {
         </div>
       )}
       
-      <header className="bg-white border-b sticky top-0 z-50">
+      <header className="bg-white/98 backdrop-blur-xl border-b border-border/50 sticky top-0 z-50 shadow-elegant">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link to="/" className="flex items-center gap-3">
-              <div className="w-14 h-14 rounded-lg bg-navy-800 flex items-center justify-center">
-                <Building2 className="w-8 h-8 text-gold-400" />
+            <Link to="/" className="flex items-center gap-3 group">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-navy-800 to-navy-700 flex items-center justify-center shadow-navy group-hover:shadow-gold-glow transition-all duration-300 group-hover:scale-110">
+                <Building2 className="w-8 h-8 text-gold-400 transition-transform duration-300 group-hover:scale-110" />
               </div>
-              <span className="font-display text-2xl font-bold text-navy-900">RPC</span>
+              <span className="font-display text-2xl font-bold text-navy-900 group-hover:text-navy-700 transition-colors duration-300">RPC</span>
             </Link>
 
             <div className="flex items-center gap-4">
@@ -280,13 +280,13 @@ export default function BorrowerDashboard() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 lg:px-8 py-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <main className="container mx-auto px-4 lg:px-8 py-8 relative z-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 animate-fade-up">
           <div>
-            <h1 className="text-2xl font-display font-bold text-foreground">
-              Welcome back, {user?.fullName.split(' ')[0]}
+            <h1 className="text-3xl font-display font-bold text-foreground mb-2">
+              Welcome back, <span className="text-gradient-gold">{user?.fullName.split(' ')[0]}</span>
             </h1>
-            <p className="text-muted-foreground">Here's an overview of your loan activity</p>
+            <p className="text-muted-foreground text-base">Here's an overview of your loan activity</p>
           </div>
           <div className="flex items-center gap-3">
             <Button 
@@ -307,11 +307,19 @@ export default function BorrowerDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatsCard title="Active Loans" value={loans.length} icon={FileText} description="In progress" />
-          <StatsCard title="Total Requested" value={formatCurrency(totalRequested)} icon={DollarSign} description="Across all loans" />
-          <StatsCard title="Pending Documents" value={pendingDocs} icon={Upload} description="Action required" />
-          <StatsCard title="Avg. Processing" value="12 days" icon={Clock} description="From application" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="animate-fade-up" style={{ animationDelay: '0.1s' }}>
+            <StatsCard title="Active Loans" value={loans.length} icon={FileText} description="In progress" />
+          </div>
+          <div className="animate-fade-up" style={{ animationDelay: '0.2s' }}>
+            <StatsCard title="Total Requested" value={formatCurrency(totalRequested)} icon={DollarSign} description="Across all loans" />
+          </div>
+          <div className="animate-fade-up" style={{ animationDelay: '0.3s' }}>
+            <StatsCard title="Pending Documents" value={pendingDocs} icon={Upload} description="Action required" />
+          </div>
+          <div className="animate-fade-up" style={{ animationDelay: '0.4s' }}>
+            <StatsCard title="Avg. Processing" value="12 days" icon={Clock} description="From application" />
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>

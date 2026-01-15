@@ -164,10 +164,10 @@ export default function LoanDetail() {
   const quote: SoftQuote | null = loan.soft_quote_data || null;
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen dashboard-bg">
       <Navbar variant="light" />
       
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative z-10">
         <Button variant="ghost" onClick={() => navigate(isOpsView ? "/ops" : "/dashboard")} className="mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" /> {isOpsView ? 'Back to Pipeline' : 'Back to Dashboard'}
         </Button>
@@ -176,17 +176,25 @@ export default function LoanDetail() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Loan Tracker - Domino's Style */}
-            <Card className="border-gold-500/20 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileCheck className="w-5 h-5 text-gold-600" />
-                  Loan Progress Tracker
+            <Card className="border-2 border-gold-500/30 bg-gradient-to-br from-white via-gold-50/30 to-white shadow-elegant-lg hover:shadow-elegant-lg transition-all duration-300 overflow-hidden relative">
+              {/* Decorative gradient overlay */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-gold-500/5 to-transparent rounded-full blur-3xl -z-0" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-success/5 to-transparent rounded-full blur-3xl -z-0" />
+              
+              <CardHeader className="relative z-10 bg-gradient-to-r from-gold-50/50 to-transparent border-b border-gold-200/30">
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-500/20 to-gold-400/10 flex items-center justify-center border border-gold-300/50 shadow-sm">
+                    <FileCheck className="w-5 h-5 text-gold-600" />
+                  </div>
+                  <span className="bg-gradient-to-r from-navy-900 to-navy-700 bg-clip-text text-transparent">
+                    Loan Progress Tracker
+                  </span>
                 </CardTitle>
-                <CardDescription>
-                  Track your loan application through each stage
+                <CardDescription className="text-base mt-2">
+                  Track your loan application through each stage with real-time updates
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="relative z-10 pt-6">
                 <LoanTrackerDominos currentStatus={loan.status as LoanStatus} />
               </CardContent>
             </Card>
@@ -204,23 +212,23 @@ export default function LoanDetail() {
                   <Badge className={statusConfigItem.color}>{statusConfigItem.label}</Badge>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Loan Amount</p>
-                    <p className="text-2xl font-bold">{formatCurrency(loan.loan_amount || 0)}</p>
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-gold-50 to-gold-100/50 border border-gold-200/50">
+                    <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">Loan Amount</p>
+                    <p className="text-2xl font-bold text-navy-900">{formatCurrency(loan.loan_amount || 0)}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Property Value</p>
-                    <p className="text-xl font-semibold">{formatCurrency(loan.property_value || 0)}</p>
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200/50">
+                    <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">Property Value</p>
+                    <p className="text-xl font-bold text-navy-900">{formatCurrency(loan.property_value || 0)}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">LTV</p>
-                    <p className="text-xl font-semibold">{loan.requested_ltv}%</p>
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-green-50 to-green-100/50 border border-green-200/50">
+                    <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">LTV</p>
+                    <p className="text-xl font-bold text-navy-900">{loan.requested_ltv}%</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Transaction Type</p>
-                    <p className="text-lg">{loan.transaction_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100/50 border border-purple-200/50">
+                    <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">Transaction Type</p>
+                    <p className="text-lg font-semibold text-navy-900">{loan.transaction_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
                   </div>
                 </div>
               </CardContent>
@@ -228,20 +236,22 @@ export default function LoanDetail() {
 
             {/* Action Cards */}
             {loan.status === "new_request" && !isOpsView && (
-              <Card className="border-blue-500/50 bg-blue-500/5">
+              <Card className="border-2 border-blue-400/50 bg-gradient-to-br from-blue-50 to-blue-100/30 shadow-elegant hover:shadow-elegant-lg transition-all duration-300">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-blue-600">
-                    <FileText className="w-5 h-5" />
+                  <CardTitle className="flex items-center gap-2 text-blue-700">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center border border-blue-300/50">
+                      <FileText className="w-5 h-5 text-blue-600" />
+                    </div>
                     Complete Your Loan Request
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-base">
                     Your loan request has been created, but you need to complete the loan details form to submit it for approval.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button 
                     variant="default"
-                    className="bg-blue-600 hover:bg-blue-700 text-white w-full"
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white w-full shadow-md hover:shadow-lg transition-all duration-300"
                     onClick={() => navigate(`/loan-request/${loanId}`)}
                     disabled={isProcessing}
                   >
@@ -256,13 +266,15 @@ export default function LoanDetail() {
             )}
 
             {loan.status === "quote_requested" && (
-              <Card className="border-yellow-500/50 bg-yellow-500/5">
+              <Card className="border-2 border-yellow-400/50 bg-gradient-to-br from-yellow-50 to-amber-50/30 shadow-elegant hover:shadow-elegant-lg transition-all duration-300">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-yellow-600">
-                    <Shield className="w-5 h-5" />
+                  <CardTitle className="flex items-center gap-3 text-yellow-700">
+                    <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center border border-yellow-300/50">
+                      <Shield className="w-5 h-5 text-yellow-600" />
+                    </div>
                     {isOpsView ? "Quote Request - Action Required" : "Quote Request Pending Approval"}
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-base">
                     {isOpsView 
                       ? "This loan request is awaiting your approval to generate a quote. Review the loan details and approve to proceed."
                       : "Your loan request has been submitted and is awaiting admin approval. You will be notified once your quote is approved."
@@ -273,7 +285,7 @@ export default function LoanDetail() {
                   <CardContent>
                     <Button 
                       variant="default"
-                      className="bg-green-600 hover:bg-green-700 text-white w-full"
+                      className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white w-full shadow-md hover:shadow-lg transition-all duration-300"
                       onClick={async () => {
                         setIsProcessing(true);
                         try {
@@ -299,13 +311,15 @@ export default function LoanDetail() {
 
             {/* Appraisal Received - Borrower Guidance */}
             {loan.status === "appraisal_received" && !isOpsView && (
-              <Card className="border-green-500/50 bg-green-500/5">
+              <Card className="border-2 border-green-400/50 bg-gradient-to-br from-green-50 to-emerald-50/30 shadow-elegant hover:shadow-elegant-lg transition-all duration-300">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-green-700">
-                    <Building2 className="w-5 h-5" />
+                  <CardTitle className="flex items-center gap-3 text-green-700">
+                    <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center border border-green-300/50">
+                      <Building2 className="w-5 h-5 text-green-600" />
+                    </div>
                     Appraisal Received
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-base">
                     Your property appraisal has been completed and received.
                   </CardDescription>
                 </CardHeader>
@@ -806,35 +820,108 @@ export default function LoanDetail() {
 
             {/* Debug card - Show loan status info in development mode */}
             {import.meta.env.DEV && (
-              <Card key={`debug-${loan.status}-${loan.id}`} className="border-gray-300 bg-gray-50">
-                <CardHeader>
-                  <CardTitle className="text-sm">🔍 Debug Info (Development Only)</CardTitle>
+              <Card key={`debug-${loan.status}-${loan.id}`} className="border-2 border-purple-300/50 bg-gradient-to-br from-purple-50/80 via-indigo-50/50 to-purple-50/80 shadow-elegant hover:shadow-elegant-lg transition-all duration-300 overflow-hidden relative">
+                {/* Decorative gradient overlay */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400/10 to-transparent rounded-full blur-2xl -z-0" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-indigo-400/10 to-transparent rounded-full blur-2xl -z-0" />
+                
+                <CardHeader className="relative z-10 bg-gradient-to-r from-purple-100/50 to-indigo-100/30 border-b border-purple-200/50">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-purple-800">
+                    <span className="text-lg">🔍</span>
+                    <span className="bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">
+                      Debug Info (Development Only)
+                    </span>
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="text-xs space-y-1 font-mono">
-                  <p><strong>Status:</strong> <span className="text-blue-600">{loan.status}</span></p>
-                  <p><strong>Soft Quote Generated:</strong> {loan.soft_quote_generated ? '✅ Yes' : '❌ No'}</p>
-                  <p><strong>Term Sheet Signed:</strong> {loan.term_sheet_signed ? '✅ Yes' : '❌ No'}</p>
-                  <p><strong>Has Quote Data:</strong> {loan.soft_quote_data ? '✅ Yes' : '❌ No'}</p>
-                  <p><strong>Term Sheet URL:</strong> {loan.term_sheet_url ? '✅ Yes' : '❌ No'}</p>
-                  <p><strong>Current Step:</strong> {loan.current_step || 'N/A'}</p>
-                  {loan.status === "funded" && (
-                    <>
-                      <p><strong>Funded Date:</strong> {loan.funded_date ? new Date(loan.funded_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '❌ No'}</p>
-                      <p><strong>Funded Amount:</strong> {loan.funded_amount ? formatCurrency(loan.funded_amount) : '❌ No'}</p>
-                    </>
-                  )}
-                  <p><strong>Is Ops View:</strong> {isOpsView ? '✅ Yes' : '❌ No'}</p>
-                  <p><strong>Should Show Sign Card:</strong> {
-                    (loan.status === "funded" || loan.status?.toLowerCase() === "funded")
-                      ? '❌ NO (Loan Complete)' 
-                      : ((loan.status === "soft_quote_issued" || 
-                          loan.status === "soft_quote" || 
-                          (loan.soft_quote_generated && !loan.term_sheet_signed)) && 
-                          !loan.term_sheet_signed && 
-                          !isOpsView) 
-                        ? '✅ YES' 
-                        : '❌ NO'
-                  }</p>
+                <CardContent className="text-xs space-y-2 font-mono relative z-10 pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
+                      <p className="text-purple-900/70 font-semibold mb-1">Status:</p>
+                      <p className="text-blue-600 font-bold text-sm">{loan.status}</p>
+                    </div>
+                    
+                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
+                      <p className="text-purple-900/70 font-semibold mb-1">Soft Quote Generated:</p>
+                      <p className={loan.soft_quote_generated ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}>
+                        {loan.soft_quote_generated ? '✅ Yes' : '❌ No'}
+                      </p>
+                    </div>
+                    
+                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
+                      <p className="text-purple-900/70 font-semibold mb-1">Term Sheet Signed:</p>
+                      <p className={loan.term_sheet_signed ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}>
+                        {loan.term_sheet_signed ? '✅ Yes' : '❌ No'}
+                      </p>
+                    </div>
+                    
+                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
+                      <p className="text-purple-900/70 font-semibold mb-1">Has Quote Data:</p>
+                      <p className={loan.soft_quote_data ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}>
+                        {loan.soft_quote_data ? '✅ Yes' : '❌ No'}
+                      </p>
+                    </div>
+                    
+                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
+                      <p className="text-purple-900/70 font-semibold mb-1">Term Sheet URL:</p>
+                      <p className={loan.term_sheet_url ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}>
+                        {loan.term_sheet_url ? '✅ Yes' : '❌ No'}
+                      </p>
+                    </div>
+                    
+                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
+                      <p className="text-purple-900/70 font-semibold mb-1">Current Step:</p>
+                      <p className="text-indigo-600 font-bold text-sm">{loan.current_step || 'N/A'}</p>
+                    </div>
+                    
+                    {loan.status === "funded" && (
+                      <>
+                        <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
+                          <p className="text-purple-900/70 font-semibold mb-1">Funded Date:</p>
+                          <p className="text-indigo-600 font-bold">
+                            {loan.funded_date ? new Date(loan.funded_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '❌ No'}
+                          </p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
+                          <p className="text-purple-900/70 font-semibold mb-1">Funded Amount:</p>
+                          <p className="text-indigo-600 font-bold">{loan.funded_amount ? formatCurrency(loan.funded_amount) : '❌ No'}</p>
+                        </div>
+                      </>
+                    )}
+                    
+                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
+                      <p className="text-purple-900/70 font-semibold mb-1">Is Ops View:</p>
+                      <p className={isOpsView ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}>
+                        {isOpsView ? '✅ Yes' : '❌ No'}
+                      </p>
+                    </div>
+                    
+                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
+                      <p className="text-purple-900/70 font-semibold mb-1">Should Show Sign Card:</p>
+                      <p className={
+                        (loan.status === "funded" || loan.status?.toLowerCase() === "funded")
+                          ? 'text-red-500 font-bold' 
+                          : ((loan.status === "soft_quote_issued" || 
+                              loan.status === "soft_quote" || 
+                              (loan.soft_quote_generated && !loan.term_sheet_signed)) && 
+                              !loan.term_sheet_signed && 
+                              !isOpsView) 
+                            ? 'text-green-600 font-bold' 
+                            : 'text-red-500 font-bold'
+                      }>
+                        {
+                          (loan.status === "funded" || loan.status?.toLowerCase() === "funded")
+                            ? '❌ NO (Loan Complete)' 
+                            : ((loan.status === "soft_quote_issued" || 
+                                loan.status === "soft_quote" || 
+                                (loan.soft_quote_generated && !loan.term_sheet_signed)) && 
+                                !loan.term_sheet_signed && 
+                                !isOpsView) 
+                              ? '✅ YES' 
+                              : '❌ NO'
+                        }
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -1401,10 +1488,12 @@ export default function LoanDetail() {
 
             {/* Admin Next Step Action Card - Conditional Commitment Issued */}
             {isOpsView && loan.status === "conditional_commitment_issued" && (
-              <Card className="border-purple-500/50 bg-purple-500/5 shadow-lg mb-4">
+              <Card className="border-2 border-purple-400/50 bg-gradient-to-br from-purple-50 to-violet-50/30 shadow-elegant-lg hover:shadow-elegant-lg mb-4 transition-all duration-300">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-purple-700">
-                    <ClipboardCheck className="w-5 h-5" />
+                  <CardTitle className="flex items-center gap-3 text-purple-700">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-400/10 flex items-center justify-center border-2 border-purple-300/50 shadow-md">
+                      <ClipboardCheck className="w-6 h-6 text-purple-600" />
+                    </div>
                     Next Step: Create Closing Checklist
                   </CardTitle>
                   <CardDescription className="text-base">
@@ -1412,27 +1501,33 @@ export default function LoanDetail() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="p-4 bg-white rounded-lg border-2 border-purple-200">
-                    <p className="text-sm font-medium text-purple-900 mb-2">Current Status:</p>
-                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                  <div className="p-5 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-purple-200/50 shadow-sm">
+                    <p className="text-sm font-semibold text-purple-900 mb-3 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Current Status:
+                    </p>
+                    <ul className="text-sm text-muted-foreground space-y-2 list-disc list-inside ml-2">
                       <li>Commitment letter has been issued</li>
                       <li>Borrower has been notified</li>
                       <li>Ready to create closing checklist</li>
                     </ul>
                   </div>
-                  <div className="p-4 bg-white rounded-lg border-2 border-purple-200">
-                    <p className="text-sm font-medium text-purple-900 mb-2">What Happens Next:</p>
-                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                  <div className="p-5 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-purple-200/50 shadow-sm">
+                    <p className="text-sm font-semibold text-purple-900 mb-3 flex items-center gap-2">
+                      <ArrowRight className="w-4 h-4" />
+                      What Happens Next:
+                    </p>
+                    <ul className="text-sm text-muted-foreground space-y-2 list-disc list-inside ml-2">
                       <li>Add closing checklist items below</li>
                       <li>Status will automatically update to "Closing Checklist Issued"</li>
                       <li>Borrower will be notified to complete the checklist</li>
                       <li>Once all items are complete, update to "Clear to Close"</li>
                     </ul>
                   </div>
-                  <div className="pt-4 border-t">
+                  <div className="pt-4 border-t border-purple-200/50">
                     <Button 
                       variant="default"
-                      className="bg-purple-600 hover:bg-purple-700 text-white w-full text-lg py-6"
+                      className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white w-full text-lg py-6 shadow-md hover:shadow-lg transition-all duration-300"
                       onClick={() => {
                         setShowAddChecklistItem(true);
                         // Scroll to checklist section after a brief delay
@@ -1713,20 +1808,25 @@ export default function LoanDetail() {
                       </div>
                     )}
                     {isOpsView && closingChecklist.filter((item: any) => item.completed).length === closingChecklist.length && closingChecklist.length > 0 && loan.status === "closing_checklist_issued" && (
-                      <Card className="border-green-500/50 bg-green-500/5 shadow-lg mt-4">
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2 text-green-700 text-base">
-                            <CheckCircle2 className="w-5 h-5" />
+                      <Card className="border-2 border-green-400/50 bg-gradient-to-br from-green-50 to-emerald-50/30 shadow-elegant-lg hover:shadow-elegant-lg mt-4 transition-all duration-300">
+                        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50/50 border-b border-green-200/50">
+                          <CardTitle className="flex items-center gap-3 text-green-700 text-lg">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-green-400/10 flex items-center justify-center border-2 border-green-300/50 shadow-md">
+                              <CheckCircle2 className="w-6 h-6 text-green-600" />
+                            </div>
                             All Checklist Items Complete - Ready for Next Step
                           </CardTitle>
-                          <CardDescription>
+                          <CardDescription className="text-base">
                             All closing checklist items have been completed by the borrower. Proceed to "Clear to Close" status.
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <div className="p-4 bg-white rounded-lg border-2 border-green-200 mb-4">
-                            <p className="text-sm font-medium text-green-900 mb-2">✓ Checklist Status:</p>
-                            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                          <div className="p-5 bg-white/90 backdrop-blur-sm rounded-xl border-2 border-green-200/50 shadow-sm mb-4">
+                            <p className="text-sm font-semibold text-green-900 mb-3 flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-green-600" />
+                              Checklist Status:
+                            </p>
+                            <ul className="text-sm text-muted-foreground space-y-2 list-disc list-inside ml-2">
                               <li>All {closingChecklist.length} checklist items completed</li>
                               <li>Loan is ready to proceed to closing</li>
                               <li>Next step: Mark as "Clear to Close"</li>
@@ -1734,7 +1834,7 @@ export default function LoanDetail() {
                           </div>
                           <Button 
                             variant="default"
-                            className="bg-green-600 hover:bg-green-700 text-white w-full text-lg py-6"
+                            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white w-full text-lg py-6 shadow-md hover:shadow-lg transition-all duration-300"
                             onClick={async () => {
                               if (!loanId) return;
                               setIsProcessing(true);
@@ -1772,10 +1872,12 @@ export default function LoanDetail() {
 
             {/* Admin Next Step Action Card - Clear to Close */}
             {loan.status === "clear_to_close" && isOpsView && (
-              <Card className="border-green-500/50 bg-green-500/5 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-green-700">
-                    <CheckCircle2 className="w-5 h-5" />
+              <Card className="border-2 border-green-400/50 bg-gradient-to-br from-green-50 to-emerald-50/30 shadow-elegant-lg hover:shadow-elegant-lg transition-all duration-300">
+                <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50/50 border-b border-green-200/50">
+                  <CardTitle className="flex items-center gap-3 text-green-700">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-green-400/10 flex items-center justify-center border-2 border-green-300/50 shadow-md">
+                      <CheckCircle2 className="w-6 h-6 text-green-600" />
+                    </div>
                     Next Step: Schedule Closing or Mark as Funded
                   </CardTitle>
                   <CardDescription className="text-base">

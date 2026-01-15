@@ -206,19 +206,33 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
   const CurrentIcon = currentStep?.icon;
 
   return (
-    <div className="w-full">
+    <div className="w-full animate-fade-up">
       {/* Progress Bar Background */}
-      <div className="relative w-full h-2 bg-muted rounded-full mb-8 overflow-hidden">
-        {/* Progress Fill */}
+      <div className="relative w-full h-3 bg-gradient-to-r from-muted via-muted/80 to-muted rounded-full mb-8 overflow-hidden shadow-inner">
+        {/* Animated Progress Fill with Shimmer */}
         <div
-          className="absolute top-0 left-0 h-full bg-gradient-to-r from-success via-gold-500 to-gold-400 transition-all duration-500 ease-out rounded-full"
+          className="absolute top-0 left-0 h-full bg-gradient-to-r from-success via-gold-500 to-gold-400 transition-all duration-1000 ease-out rounded-full shadow-lg relative overflow-hidden"
           style={{ width: `${progressPercentage}%` }}
-        />
+        >
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" 
+               style={{ 
+                 backgroundSize: '200% 100%',
+                 animation: 'shimmer 3s ease-in-out infinite'
+               }} 
+          />
+          {/* Glow effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-success/50 via-gold-500/50 to-gold-400/50 blur-sm" />
+        </div>
+        {/* Progress percentage indicator */}
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-2 text-xs font-bold text-muted-foreground">
+          {Math.round(progressPercentage)}%
+        </div>
       </div>
 
       {/* Stages */}
-      <div className="relative w-full overflow-x-auto pb-4">
-        <div className="flex items-start min-w-max px-2">
+      <div className="relative w-full overflow-x-auto pb-4 scrollbar-hide">
+        <div className="flex items-start min-w-max px-2 gap-1">
           {steps.map((step, index) => {
             // If funded, all steps including the last one are completed
             const isCompleted = isFunded ? index <= currentIndex : index < currentIndex;
@@ -226,49 +240,65 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
             const Icon = step.icon;
 
             return (
-              <div key={step.id} className="flex items-center">
+              <div key={step.id} className="flex items-center group">
                 <div
                   className={cn(
-                    "flex flex-col items-center relative transition-all duration-300",
-                    "min-w-[100px] max-w-[120px]"
+                    "flex flex-col items-center relative transition-all duration-500 ease-out",
+                    "min-w-[100px] max-w-[120px]",
+                    "hover:scale-105",
+                    isCurrent && "z-20"
                   )}
+                  style={{
+                    animationDelay: `${index * 50}ms`
+                  }}
                 >
                   {/* Stage Circle */}
                   <div
                     className={cn(
-                      "relative z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg",
+                      "relative z-10 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-500 ease-out shadow-lg",
                       "border-2",
-                      isCompleted && "bg-success border-success text-white scale-110",
-                      isCurrent && "bg-gold-500 border-gold-600 text-navy-900 scale-125 ring-4 ring-gold-500/30 animate-pulse",
-                      !isCompleted && !isCurrent && "bg-muted border-muted-foreground/20 text-muted-foreground"
+                      "group-hover:shadow-xl group-hover:scale-110",
+                      isCompleted && "bg-gradient-to-br from-success to-success/80 border-success text-white scale-110 shadow-success/50 shadow-lg",
+                      isCurrent && "bg-gradient-to-br from-gold-500 via-gold-400 to-gold-500 border-gold-600 text-navy-900 scale-125 ring-4 ring-gold-500/40 shadow-gold-glow animate-pulse-gold",
+                      !isCompleted && !isCurrent && "bg-gradient-to-br from-muted to-muted/80 border-muted-foreground/30 text-muted-foreground hover:border-muted-foreground/50"
                     )}
                   >
+                    {/* Inner glow for completed */}
+                    {isCompleted && (
+                      <div className="absolute inset-0 rounded-full bg-white/20 animate-pulse" />
+                    )}
+                    {/* Inner glow for current */}
+                    {isCurrent && (
+                      <div className="absolute inset-0 rounded-full bg-white/30 animate-ping" style={{ animationDuration: '2s' }} />
+                    )}
                     {isCompleted ? (
-                      <Check className="w-6 h-6" />
+                      <Check className="w-7 h-7 relative z-10 animate-scale-in" />
                     ) : (
                       <Icon className={cn(
-                        "w-5 h-5",
-                        isCurrent && "animate-bounce"
+                        "w-6 h-6 relative z-10 transition-transform duration-300",
+                        isCurrent && "animate-bounce-subtle"
                       )} />
                     )}
                   </div>
 
                   {/* Stage Label */}
                   <div className={cn(
-                    "mt-3 text-center transition-all duration-300 w-full",
-                    isCurrent && "scale-105"
+                    "mt-4 text-center transition-all duration-500 w-full",
+                    isCurrent && "scale-110"
                   )}>
                     <p className={cn(
-                      "font-semibold text-xs leading-tight mb-1",
-                      isCompleted && "text-success font-bold",
-                      isCurrent && "text-gold-600 font-bold",
-                      !isCompleted && !isCurrent && "text-muted-foreground"
+                      "font-bold text-xs leading-tight mb-1.5 transition-all duration-300",
+                      isCompleted && "text-success font-extrabold drop-shadow-sm",
+                      isCurrent && "text-gold-600 font-extrabold drop-shadow-sm animate-pulse",
+                      !isCompleted && !isCurrent && "text-muted-foreground group-hover:text-foreground/70"
                     )}>
                       {step.label}
                     </p>
                     <p className={cn(
-                      "text-[10px] leading-tight",
-                      isCompleted || isCurrent ? "text-foreground/70" : "text-muted-foreground/60"
+                      "text-[10px] leading-tight transition-all duration-300",
+                      isCompleted && "text-success/80 font-medium",
+                      isCurrent && "text-gold-700/80 font-medium",
+                      !isCompleted && !isCurrent && "text-muted-foreground/60 group-hover:text-muted-foreground/80"
                     )}>
                       {step.description}
                     </p>
@@ -276,20 +306,37 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
 
                   {/* Current Stage Indicator */}
                   {isCurrent && (
-                    <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-                      <div className="w-2 h-2 bg-gold-500 rounded-full animate-ping" />
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+                      <div className="relative">
+                        <div className="w-3 h-3 bg-gold-500 rounded-full animate-ping" style={{ animationDuration: '1.5s' }} />
+                        <div className="absolute inset-0 w-3 h-3 bg-gold-400 rounded-full" />
+                      </div>
                     </div>
+                  )}
+                  
+                  {/* Completed Stage Glow */}
+                  {isCompleted && !isCurrent && (
+                    <div className="absolute -inset-1 bg-success/20 rounded-full blur-md -z-10 animate-pulse" style={{ animationDuration: '3s' }} />
                   )}
                 </div>
 
                 {/* Connecting Line */}
                 {index < steps.length - 1 && (
-                  <div
-                    className={cn(
-                      "h-0.5 mx-2 transition-all duration-300",
-                      isCompleted ? "bg-success w-16" : "bg-muted w-8"
-                    )}
-                  />
+                  <div className="relative mx-3 mt-7">
+                    <div className={cn(
+                      "h-1 rounded-full transition-all duration-500 ease-out relative overflow-hidden",
+                      isCompleted ? "bg-gradient-to-r from-success to-success/80 w-20 shadow-sm" : "bg-gradient-to-r from-muted to-muted/50 w-12"
+                    )}>
+                      {isCompleted && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" 
+                             style={{ 
+                               backgroundSize: '200% 100%',
+                               animation: 'shimmer 2s ease-in-out infinite'
+                             }} 
+                        />
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             );
@@ -300,35 +347,51 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
       {/* Current Stage Info */}
       {currentStep && CurrentIcon && (
         <div className={cn(
-          "mt-6 p-4 rounded-lg border",
+          "mt-8 p-5 rounded-xl border-2 shadow-elegant-lg transition-all duration-500 animate-fade-up",
+          "bg-gradient-to-br",
           isFunded 
-            ? "bg-success/10 border-success/20" 
-            : "bg-gold-500/10 border-gold-500/20"
+            ? "from-success/15 via-success/10 to-success/5 border-success/30" 
+            : "from-gold-500/15 via-gold-400/10 to-gold-300/5 border-gold-500/30",
+          "hover:shadow-elegant-lg hover:scale-[1.02]"
         )}>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center",
+              "w-14 h-14 rounded-xl flex items-center justify-center shadow-lg transition-all duration-300",
+              "relative overflow-hidden",
               isFunded 
-                ? "bg-success text-white" 
-                : "bg-gold-500 text-navy-900"
+                ? "bg-gradient-to-br from-success to-success/80 text-white ring-2 ring-success/30" 
+                : "bg-gradient-to-br from-gold-500 to-gold-400 text-navy-900 ring-2 ring-gold-500/30",
+              "animate-scale-in"
             )}>
+              {/* Animated background glow */}
+              <div className={cn(
+                "absolute inset-0 rounded-xl opacity-50",
+                isFunded ? "bg-success" : "bg-gold-400",
+                "animate-pulse"
+              )} style={{ animationDuration: '2s' }} />
               {isFunded ? (
-                <Check className="w-5 h-5" />
+                <Check className="w-7 h-7 relative z-10" />
               ) : (
-                <CurrentIcon className="w-5 h-5" />
+                <CurrentIcon className="w-7 h-7 relative z-10 animate-bounce-subtle" />
               )}
             </div>
-            <div>
+            <div className="flex-1">
               <p className={cn(
-                "font-semibold text-sm",
+                "font-bold text-base mb-1 transition-colors duration-300",
                 isFunded ? "text-success" : "text-gold-700"
               )}>
-                {isFunded ? "Completed Stage" : "Current Stage"}: {currentStep.label}
+                {isFunded ? "✓ Completed Stage" : "→ Current Stage"}: <span className="font-extrabold">{currentStep.label}</span>
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground font-medium">
                 {currentStep.description}
               </p>
             </div>
+            {/* Decorative element */}
+            <div className={cn(
+              "hidden md:block w-16 h-16 rounded-lg opacity-10",
+              isFunded ? "bg-success" : "bg-gold-500",
+              "blur-xl"
+            )} />
           </div>
         </div>
       )}

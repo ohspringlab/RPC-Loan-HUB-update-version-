@@ -98,7 +98,7 @@ export default function OperationsDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen dashboard-bg">
       <header className="bg-navy-900 text-white">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -167,7 +167,7 @@ export default function OperationsDashboard() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 lg:px-8 py-8">
+      <main className="container mx-auto px-4 lg:px-8 py-8 relative z-10">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-display font-bold text-foreground">Pipeline Overview</h1>

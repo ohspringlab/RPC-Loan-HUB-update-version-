@@ -16,17 +16,17 @@ interface StatsCardProps {
 
 export function StatsCard({ title, value, description, icon: Icon, trend, className }: StatsCardProps) {
   return (
-    <Card className={cn("transition-all hover:shadow-lg", className)}>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
+    <Card className={cn("transition-all duration-300 hover:shadow-elegant-lg hover:-translate-y-1 hover:border-primary/30 group", className)}>
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         {Icon && (
-          <div className="w-8 h-8 rounded-lg bg-gold-500/10 flex items-center justify-center">
-            <Icon className="w-4 h-4 text-gold-600" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-500/20 to-gold-400/10 flex items-center justify-center border border-gold-200/50 group-hover:from-gold-500/30 group-hover:to-gold-400/20 transition-all duration-300 group-hover:scale-110">
+            <Icon className="w-5 h-5 text-gold-600" />
           </div>
         )}
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold text-foreground">{value}</div>
+        <div className="text-3xl font-bold text-foreground mb-1">{value}</div>
         {(description || trend) && (
           <div className="flex items-center gap-2 mt-1">
             {trend && (
