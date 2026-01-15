@@ -667,7 +667,11 @@ router.get('/:id/closing-checklist', authenticate, async (req, res, next) => {
     const result = await db.query(`
       SELECT cci.*, 
              u1.full_name as created_by_name,
-             u2.full_name as completed_by_name
+             u2.full_name as completed_by_name,
+             CASE 
+               WHEN cci.status = 'completed' THEN true
+               ELSE false
+             END as completed
       FROM closing_checklist_items cci
       LEFT JOIN users u1 ON cci.created_by = u1.id
       LEFT JOIN users u2 ON cci.completed_by = u2.id
@@ -700,6 +704,21 @@ router.put('/:id/closing-checklist/:itemId', authenticate, [
 
     const { completed, notes } = req.body;
 
+    // Check if table has 'completed' column or uses 'status'
+    let hasCompletedColumn = false;
+    try {
+      const columnCheck = await db.query(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'closing_checklist_items'
+        AND column_name = 'completed'
+      `);
+      hasCompletedColumn = columnCheck.rows.length > 0;
+    } catch (error) {
+      console.warn('[Closing Checklist Update] Error checking columns:', error);
+    }
+
     let updateQuery = `
       UPDATE closing_checklist_items SET
         updated_at = NOW()
@@ -708,8 +727,15 @@ router.put('/:id/closing-checklist/:itemId', authenticate, [
     let paramIndex = 1;
 
     if (completed !== undefined) {
-      updateQuery += `, completed = $${paramIndex++}`;
-      params.push(completed);
+      if (hasCompletedColumn) {
+        // Table has 'completed' column (boolean)
+        updateQuery += `, completed = $${paramIndex++}`;
+        params.push(completed);
+      } else {
+        // Table uses 'status' column ('pending', 'completed', 'waived')
+        updateQuery += `, status = $${paramIndex++}`;
+        params.push(completed ? 'completed' : 'pending');
+      }
       
       if (completed) {
         updateQuery += `, completed_by = $${paramIndex++}, completed_at = NOW()`;
