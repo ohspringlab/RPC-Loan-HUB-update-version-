@@ -169,32 +169,19 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res, nex
     }
 
     // Build INSERT statement dynamically based on schema
-    let columns = ['loan_id', 'needs_list_item_id', 'user_id', 'folder_name', 'file_name', 'original_name', 'file_type', 'file_size', 'storage_path'];
+    // Note: documents table has: id, loan_id, name, category, status, uploaded_by, uploaded_at, file_url, notes, needs_list_item_id
+    let columns = ['loan_id', 'needs_list_item_id', 'uploaded_by', 'name', 'category', 'file_url', 'status'];
     let values = [
       loanId,
       needsListItemId || null,
       req.user.id,
-      finalFolderName,
-      req.file.filename,
-      req.file.originalname,
-      req.file.mimetype,
-      req.file.size,
-      `/uploads/${req.file.filename}`
+      req.file.originalname, // Use original filename as name
+      category,
+      `/uploads/${req.file.filename}`, // Store file path in file_url
+      'pending' // Default status
     ];
-    let placeholders = ['$1', '$2', '$3', '$4', '$5', '$6', '$7', '$8', '$9'];
-    let paramIndex = 9;
-
-    // Add optional columns if they exist
-    if (hasNameColumn) {
-      columns.push('name');
-      values.push(req.file.originalname); // Use original filename as name
-      placeholders.push(`$${++paramIndex}`);
-    }
-    if (hasCategoryColumn) {
-      columns.push('category');
-      values.push(category);
-      placeholders.push(`$${++paramIndex}`);
-    }
+    let placeholders = ['$1', '$2', '$3', '$4', '$5', '$6', '$7'];
+    let paramIndex = 7;
 
     // Save document record
     const result = await db.query(`
@@ -203,10 +190,10 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res, nex
       RETURNING *
     `, values);
 
-    // Update needs list item status and last upload time
+    // Update needs list item status
     if (needsListItemId) {
       await db.query(`
-        UPDATE needs_list_items SET status = 'uploaded', last_upload_at = NOW(), updated_at = NOW()
+        UPDATE needs_list_items SET status = 'uploaded', updated_at = NOW()
         WHERE id = $1
       `, [needsListItemId]);
     }
