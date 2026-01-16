@@ -1,6 +1,7 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Loan, LoanStatus } from "@/lib/api";
+import { Loan } from "@/lib/api";
+import { type LoanStatus } from "@/components/loan/LoanTracker";
 import { PipelineLoanCard } from "./PipelineLoanCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

@@ -1,5 +1,5 @@
-import { Loan, LoanStatus } from "@/lib/api";
-import { statusConfig } from "@/components/loan/LoanTracker";
+import { Loan } from "@/lib/api";
+import { statusConfig, type LoanStatus } from "@/components/loan/LoanTracker";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -114,10 +114,20 @@ export function PipelineLoanCard({ loan, onView, onUpdateStatus }: PipelineLoanC
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate(`/ops/loans/${loan.id}`)}>
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/ops/loans/${loan.id}`);
+                  }}
+                >
                   <Eye className="w-4 h-4 mr-2" /> View Details
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onUpdateStatus?.(loan)}>
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateStatus?.(loan);
+                  }}
+                >
                   <Clock className="w-4 h-4 mr-2" /> Update Status
                 </DropdownMenuItem>
               </DropdownMenuContent>

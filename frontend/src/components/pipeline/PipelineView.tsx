@@ -10,7 +10,8 @@ import {
   closestCorners,
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Loan, LoanStatus, StatusOption, opsApi } from "@/lib/api";
+import { Loan, StatusOption, opsApi } from "@/lib/api";
+import { type LoanStatus } from "@/components/loan/LoanTracker";
 import { PipelineColumn } from "./PipelineColumn";
 import { PipelineLoanCard } from "./PipelineLoanCard";
 import { Input } from "@/components/ui/input";
@@ -214,7 +215,15 @@ export function PipelineView({ onViewLoan }: PipelineViewProps) {
         <DragOverlay>
           {activeLoan ? (
             <div className="w-80 opacity-90">
-              <PipelineLoanCard loan={activeLoan} />
+              <PipelineLoanCard 
+                loan={activeLoan} 
+                onView={onViewLoan ? () => onViewLoan(activeLoan.id) : undefined}
+                onUpdateStatus={(loan) => {
+                  setSelectedLoan(loan);
+                  setNewStatus(loan.status);
+                  setShowStatusDialog(true);
+                }}
+              />
             </div>
           ) : null}
         </DragOverlay>

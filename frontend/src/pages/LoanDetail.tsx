@@ -7,7 +7,7 @@ import { LoanTrackerFull, LoanTrackerDominos, statusConfig, LoanStatus } from "@
 import { FullApplicationForm } from "@/components/loan/FullApplicationForm";
 import { loansApi, documentsApi, paymentsApi, opsApi, Loan, NeedsListItem, SoftQuote } from "@/lib/api";
 import { 
-  ArrowLeft, Building2, DollarSign, FileText, Download, CreditCard, 
+  ArrowLeft, ArrowRight, Building2, DollarSign, FileText, Download, CreditCard, 
   CheckCircle2, AlertCircle, Upload, Shield, FileCheck, Calendar, ClipboardCheck, RefreshCw,
   Search, XCircle
 } from "lucide-react";
