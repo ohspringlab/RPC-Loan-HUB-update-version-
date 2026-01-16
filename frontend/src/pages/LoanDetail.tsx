@@ -194,8 +194,10 @@ export default function LoanDetail() {
                   Track your loan application through each stage with real-time updates
                 </CardDescription>
               </CardHeader>
-              <CardContent className="relative z-10 pt-6">
-                <LoanTrackerDominos currentStatus={loan.status as LoanStatus} />
+              <CardContent className="relative z-10 pt-6 overflow-visible">
+                <div className="w-full -mx-6 px-6">
+                  <LoanTrackerDominos currentStatus={loan.status as LoanStatus} />
+                </div>
               </CardContent>
             </Card>
 
@@ -214,21 +216,37 @@ export default function LoanDetail() {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-gradient-to-br from-gold-50 to-gold-100/50 border border-gold-200/50">
-                    <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">Loan Amount</p>
-                    <p className="text-2xl font-bold text-navy-900">{formatCurrency(loan.loan_amount || 0)}</p>
+                  <div className="magic-glow-card magic-glow-gold p-4 rounded-xl overflow-visible relative">
+                    <div className="hover-star-1"></div>
+                    <div className="hover-star-2"></div>
+                    <div className="hover-star-3"></div>
+                    <div className="hover-star-4"></div>
+                    <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide relative z-10">Loan Amount</p>
+                    <p className="text-2xl font-bold text-navy-900 relative z-10">{formatCurrency(loan.loan_amount || 0)}</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200/50">
-                    <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">Property Value</p>
-                    <p className="text-xl font-bold text-navy-900">{formatCurrency(loan.property_value || 0)}</p>
+                  <div className="magic-glow-card magic-glow-blue p-4 rounded-xl overflow-visible relative">
+                    <div className="hover-star-1"></div>
+                    <div className="hover-star-2"></div>
+                    <div className="hover-star-3"></div>
+                    <div className="hover-star-4"></div>
+                    <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide relative z-10">Property Value</p>
+                    <p className="text-xl font-bold text-navy-900 relative z-10">{formatCurrency(loan.property_value || 0)}</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-gradient-to-br from-green-50 to-green-100/50 border border-green-200/50">
-                    <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">LTV</p>
-                    <p className="text-xl font-bold text-navy-900">{loan.requested_ltv}%</p>
+                  <div className="magic-glow-card magic-glow-green p-4 rounded-xl overflow-visible relative">
+                    <div className="hover-star-1"></div>
+                    <div className="hover-star-2"></div>
+                    <div className="hover-star-3"></div>
+                    <div className="hover-star-4"></div>
+                    <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide relative z-10">LTV</p>
+                    <p className="text-xl font-bold text-navy-900 relative z-10">{loan.requested_ltv}%</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100/50 border border-purple-200/50">
-                    <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">Transaction Type</p>
-                    <p className="text-lg font-semibold text-navy-900">{loan.transaction_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+                  <div className="magic-glow-card magic-glow-purple p-4 rounded-xl overflow-visible relative">
+                    <div className="hover-star-1"></div>
+                    <div className="hover-star-2"></div>
+                    <div className="hover-star-3"></div>
+                    <div className="hover-star-4"></div>
+                    <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide relative z-10">Transaction Type</p>
+                    <p className="text-lg font-semibold text-navy-900 relative z-10">{loan.transaction_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
                   </div>
                 </div>
               </CardContent>
@@ -820,13 +838,14 @@ export default function LoanDetail() {
 
             {/* Debug card - Show loan status info in development mode */}
             {import.meta.env.DEV && (
-              <Card key={`debug-${loan.status}-${loan.id}`} className="border-2 border-purple-300/50 bg-gradient-to-br from-purple-50/80 via-indigo-50/50 to-purple-50/80 shadow-elegant hover:shadow-elegant-lg transition-all duration-300 overflow-hidden relative">
-                {/* Decorative gradient overlay */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400/10 to-transparent rounded-full blur-2xl -z-0" />
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-indigo-400/10 to-transparent rounded-full blur-2xl -z-0" />
+              <Card key={`debug-${loan.status}-${loan.id}`} className="magic-glow-card magic-glow-purple overflow-visible relative">
+                <div className="hover-star-1"></div>
+                <div className="hover-star-2"></div>
+                <div className="hover-star-3"></div>
+                <div className="hover-star-4"></div>
                 
                 <CardHeader className="relative z-10 bg-gradient-to-r from-purple-100/50 to-indigo-100/30 border-b border-purple-200/50">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-purple-800">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-purple-800 relative z-10">
                     <span className="text-lg">🔍</span>
                     <span className="bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">
                       Debug Info (Development Only)
@@ -835,79 +854,119 @@ export default function LoanDetail() {
                 </CardHeader>
                 <CardContent className="text-xs space-y-2 font-mono relative z-10 pt-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
-                      <p className="text-purple-900/70 font-semibold mb-1">Status:</p>
-                      <p className="text-blue-600 font-bold text-sm">{loan.status}</p>
+                    <div className="magic-glow-card magic-glow-blue p-2 rounded-lg overflow-visible relative">
+                      <div className="hover-star-1"></div>
+                      <div className="hover-star-2"></div>
+                      <div className="hover-star-3"></div>
+                      <div className="hover-star-4"></div>
+                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Status:</p>
+                      <p className="text-blue-600 font-bold text-sm relative z-10">{loan.status}</p>
                     </div>
                     
-                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
-                      <p className="text-purple-900/70 font-semibold mb-1">Soft Quote Generated:</p>
-                      <p className={loan.soft_quote_generated ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}>
+                    <div className="magic-glow-card magic-glow-green p-2 rounded-lg overflow-visible relative">
+                      <div className="hover-star-1"></div>
+                      <div className="hover-star-2"></div>
+                      <div className="hover-star-3"></div>
+                      <div className="hover-star-4"></div>
+                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Soft Quote Generated:</p>
+                      <p className={`${loan.soft_quote_generated ? 'text-green-600' : 'text-red-500'} font-bold relative z-10`}>
                         {loan.soft_quote_generated ? '✅ Yes' : '❌ No'}
                       </p>
                     </div>
                     
-                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
-                      <p className="text-purple-900/70 font-semibold mb-1">Term Sheet Signed:</p>
-                      <p className={loan.term_sheet_signed ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}>
+                    <div className="magic-glow-card magic-glow-green p-2 rounded-lg overflow-visible relative">
+                      <div className="hover-star-1"></div>
+                      <div className="hover-star-2"></div>
+                      <div className="hover-star-3"></div>
+                      <div className="hover-star-4"></div>
+                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Term Sheet Signed:</p>
+                      <p className={`${loan.term_sheet_signed ? 'text-green-600' : 'text-red-500'} font-bold relative z-10`}>
                         {loan.term_sheet_signed ? '✅ Yes' : '❌ No'}
                       </p>
                     </div>
                     
-                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
-                      <p className="text-purple-900/70 font-semibold mb-1">Has Quote Data:</p>
-                      <p className={loan.soft_quote_data ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}>
+                    <div className="magic-glow-card magic-glow-green p-2 rounded-lg overflow-visible relative">
+                      <div className="hover-star-1"></div>
+                      <div className="hover-star-2"></div>
+                      <div className="hover-star-3"></div>
+                      <div className="hover-star-4"></div>
+                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Has Quote Data:</p>
+                      <p className={`${loan.soft_quote_data ? 'text-green-600' : 'text-red-500'} font-bold relative z-10`}>
                         {loan.soft_quote_data ? '✅ Yes' : '❌ No'}
                       </p>
                     </div>
                     
-                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
-                      <p className="text-purple-900/70 font-semibold mb-1">Term Sheet URL:</p>
-                      <p className={loan.term_sheet_url ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}>
+                    <div className="magic-glow-card magic-glow-green p-2 rounded-lg overflow-visible relative">
+                      <div className="hover-star-1"></div>
+                      <div className="hover-star-2"></div>
+                      <div className="hover-star-3"></div>
+                      <div className="hover-star-4"></div>
+                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Term Sheet URL:</p>
+                      <p className={`${loan.term_sheet_url ? 'text-green-600' : 'text-red-500'} font-bold relative z-10`}>
                         {loan.term_sheet_url ? '✅ Yes' : '❌ No'}
                       </p>
                     </div>
                     
-                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
-                      <p className="text-purple-900/70 font-semibold mb-1">Current Step:</p>
-                      <p className="text-indigo-600 font-bold text-sm">{loan.current_step || 'N/A'}</p>
+                    <div className="magic-glow-card magic-glow-blue p-2 rounded-lg overflow-visible relative">
+                      <div className="hover-star-1"></div>
+                      <div className="hover-star-2"></div>
+                      <div className="hover-star-3"></div>
+                      <div className="hover-star-4"></div>
+                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Current Step:</p>
+                      <p className="text-indigo-600 font-bold text-sm relative z-10">{loan.current_step || 'N/A'}</p>
                     </div>
                     
                     {loan.status === "funded" && (
                       <>
-                        <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
-                          <p className="text-purple-900/70 font-semibold mb-1">Funded Date:</p>
-                          <p className="text-indigo-600 font-bold">
+                        <div className="magic-glow-card magic-glow-blue p-2 rounded-lg overflow-visible relative">
+                          <div className="hover-star-1"></div>
+                          <div className="hover-star-2"></div>
+                          <div className="hover-star-3"></div>
+                          <div className="hover-star-4"></div>
+                          <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Funded Date:</p>
+                          <p className="text-indigo-600 font-bold relative z-10">
                             {loan.funded_date ? new Date(loan.funded_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '❌ No'}
                           </p>
                         </div>
-                        <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
-                          <p className="text-purple-900/70 font-semibold mb-1">Funded Amount:</p>
-                          <p className="text-indigo-600 font-bold">{loan.funded_amount ? formatCurrency(loan.funded_amount) : '❌ No'}</p>
+                        <div className="magic-glow-card magic-glow-gold p-2 rounded-lg overflow-visible relative">
+                          <div className="hover-star-1"></div>
+                          <div className="hover-star-2"></div>
+                          <div className="hover-star-3"></div>
+                          <div className="hover-star-4"></div>
+                          <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Funded Amount:</p>
+                          <p className="text-indigo-600 font-bold relative z-10">{loan.funded_amount ? formatCurrency(loan.funded_amount) : '❌ No'}</p>
                         </div>
                       </>
                     )}
                     
-                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
-                      <p className="text-purple-900/70 font-semibold mb-1">Is Ops View:</p>
-                      <p className={isOpsView ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}>
+                    <div className="magic-glow-card magic-glow-purple p-2 rounded-lg overflow-visible relative">
+                      <div className="hover-star-1"></div>
+                      <div className="hover-star-2"></div>
+                      <div className="hover-star-3"></div>
+                      <div className="hover-star-4"></div>
+                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Is Ops View:</p>
+                      <p className={`${isOpsView ? 'text-green-600' : 'text-red-500'} font-bold relative z-10`}>
                         {isOpsView ? '✅ Yes' : '❌ No'}
                       </p>
                     </div>
                     
-                    <div className="p-2 rounded-lg bg-white/60 backdrop-blur-sm border border-purple-200/30">
-                      <p className="text-purple-900/70 font-semibold mb-1">Should Show Sign Card:</p>
-                      <p className={
+                    <div className="magic-glow-card magic-glow-purple p-2 rounded-lg overflow-visible relative">
+                      <div className="hover-star-1"></div>
+                      <div className="hover-star-2"></div>
+                      <div className="hover-star-3"></div>
+                      <div className="hover-star-4"></div>
+                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Should Show Sign Card:</p>
+                      <p className={`${
                         (loan.status === "funded" || loan.status?.toLowerCase() === "funded")
-                          ? 'text-red-500 font-bold' 
+                          ? 'text-red-500' 
                           : ((loan.status === "soft_quote_issued" || 
                               loan.status === "soft_quote" || 
                               (loan.soft_quote_generated && !loan.term_sheet_signed)) && 
                               !loan.term_sheet_signed && 
                               !isOpsView) 
-                            ? 'text-green-600 font-bold' 
-                            : 'text-red-500 font-bold'
-                      }>
+                            ? 'text-green-600' 
+                            : 'text-red-500'
+                      } font-bold relative z-10`}>
                         {
                           (loan.status === "funded" || loan.status?.toLowerCase() === "funded")
                             ? '❌ NO (Loan Complete)' 
@@ -1361,7 +1420,9 @@ export default function LoanDetail() {
                       <Button 
                         variant="outline" 
                         onClick={() => {
-                          window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}${loan.full_application_pdf_url}`, '_blank');
+                          // Use base URL without /api for static files
+                          const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace('/api', '');
+                          window.open(`${baseUrl}${loan.full_application_pdf_url}`, '_blank');
                         }}
                         className="w-full"
                       >

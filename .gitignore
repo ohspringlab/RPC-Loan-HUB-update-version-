@@ -84,4 +84,6 @@ temp/
 # yarn.lock
 # pnpm-lock.yaml
 
+# Vercel
+.vercel
 

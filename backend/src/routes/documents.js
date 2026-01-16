@@ -265,10 +265,10 @@ router.get('/needs-list/:loanId', authenticate, async (req, res, next) => {
              (SELECT MAX(uploaded_at) FROM documents d WHERE d.needs_list_item_id = nli.id) as last_upload
       FROM needs_list_items nli
       WHERE nli.loan_id = $1
-      ORDER BY nli.document_type, nli.folder_name, nli.created_at DESC, nli.required DESC
+      ORDER BY nli.document_type, nli.folder_name, nli.created_at DESC, nli.is_required DESC
     `, [req.params.loanId]);
 
-    // Add folder color to each item
+    // Add folder color to each item and map is_required to required for frontend compatibility
     const needsListWithColors = result.rows.map(item => {
       let folderColor = 'tan'; // No documents - tan/beige
       if (item.document_count > 0) {
@@ -277,7 +277,9 @@ router.get('/needs-list/:loanId', authenticate, async (req, res, next) => {
           folderColor = 'red'; // New upload in last 24 hours - red
         }
       }
-      return { ...item, folder_color: folderColor };
+      // Map is_required to required for frontend compatibility
+      const { is_required, ...rest } = item;
+      return { ...rest, required: is_required || false, folder_color: folderColor };
     });
 
     res.json({ needsList: needsListWithColors });

@@ -72,14 +72,22 @@ router.get('/:id', authenticate, async (req, res, next) => {
     `, [req.params.id]);
 
     // Get needs list with folder status - deduplicate by getting the most recent item per document_type
-    const needsList = await db.query(`
+    const needsListResult = await db.query(`
       SELECT DISTINCT ON (nli.document_type, nli.folder_name) nli.*, 
              (SELECT COUNT(*) FROM documents d WHERE d.needs_list_item_id = nli.id) as document_count,
              (SELECT MAX(uploaded_at) FROM documents d WHERE d.needs_list_item_id = nli.id) as last_upload
       FROM needs_list_items nli
       WHERE nli.loan_id = $1
-      ORDER BY nli.document_type, nli.folder_name, nli.created_at DESC, nli.required DESC
+      ORDER BY nli.document_type, nli.folder_name, nli.created_at DESC, nli.is_required DESC
     `, [req.params.id]);
+    
+    // Map is_required to required for frontend compatibility
+    const needsList = {
+      rows: needsListResult.rows.map(item => {
+        const { is_required, ...rest } = item;
+        return { ...rest, required: is_required || false };
+      })
+    };
 
     // Get documents grouped by folder
     // Note: documents table has 'name' instead of 'file_name', and 'file_url' instead of separate file fields
@@ -558,7 +566,7 @@ router.post('/:id/complete-needs-list', authenticate, async (req, res, next) => 
       SELECT 
         nli.id,
         nli.document_type,
-        nli.required,
+        nli.is_required as required,
         (SELECT COUNT(*) FROM documents d WHERE d.needs_list_item_id = nli.id) as document_count
       FROM needs_list_items nli
       WHERE nli.loan_id = $1
@@ -668,10 +676,7 @@ router.get('/:id/closing-checklist', authenticate, async (req, res, next) => {
       SELECT cci.*, 
              u1.full_name as created_by_name,
              u2.full_name as completed_by_name,
-             CASE 
-               WHEN cci.status = 'completed' THEN true
-               ELSE false
-             END as completed
+             cci.completed
       FROM closing_checklist_items cci
       LEFT JOIN users u1 ON cci.created_by = u1.id
       LEFT JOIN users u2 ON cci.completed_by = u2.id

@@ -510,7 +510,7 @@ router.post('/loan/:id/needs-list', [
     const { documentType, folderName, description, required = true } = req.body;
 
     const result = await db.query(`
-      INSERT INTO needs_list_items (loan_id, document_type, folder_name, description, required, requested_by)
+      INSERT INTO needs_list_items (loan_id, document_type, folder_name, description, is_required, requested_by)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `, [req.params.id, documentType, folderName, description, required, req.user.id]);
@@ -816,10 +816,7 @@ router.get('/loan/:id/closing-checklist', async (req, res, next) => {
       SELECT cci.*, 
              u1.full_name as created_by_name,
              u2.full_name as completed_by_name,
-             CASE 
-               WHEN cci.status = 'completed' THEN true
-               ELSE false
-             END as completed
+             cci.completed
       FROM closing_checklist_items cci
       LEFT JOIN users u1 ON cci.created_by = u1.id
       LEFT JOIN users u2 ON cci.completed_by = u2.id

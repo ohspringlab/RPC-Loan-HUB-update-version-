@@ -333,7 +333,7 @@ const generateInitialNeedsListForLoan = async (loanId, loan, db) => {
         placeholders.push(`$${++paramIndex}`);
       }
       
-      columns.push('document_type', 'folder_name', 'description', 'status', 'required');
+      columns.push('document_type', 'folder_name', 'description', 'status', 'is_required');
       values.push(item.type, item.folder, item.description, 'pending', item.required);
       placeholders.push(`$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`);
 
@@ -363,7 +363,7 @@ const generateInitialNeedsListForLoan = async (loanId, loan, db) => {
       // If insert fails and it's a category error, try with category
       if (insertError.message.includes('category') && !hasCategoryColumn) {
         await db.query(`
-          INSERT INTO needs_list_items (loan_id, category, document_type, folder_name, description, status, required)
+          INSERT INTO needs_list_items (loan_id, category, document_type, folder_name, description, status, is_required)
           VALUES ($1, $2, $3, $4, $5, 'pending', $6)
           ON CONFLICT DO NOTHING
         `, [loanId, category, item.type, item.folder, item.description, item.required]);

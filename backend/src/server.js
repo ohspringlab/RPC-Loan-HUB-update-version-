@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const path = require('path');
 
 const authRoutes = require('./routes/auth');
+const clerkRoutes = require('./routes/clerk');
 const loanRoutes = require('./routes/loans');
 const documentRoutes = require('./routes/documents');
 const paymentRoutes = require('./routes/payments');
@@ -68,8 +69,13 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Clerk middleware (must be before other routes)
+// Note: Clerk Express middleware will be added when CLERK_SECRET_KEY is set
+// The middleware is applied per-route using requireClerkAuth
+
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/clerk', clerkRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/payments', paymentRoutes);

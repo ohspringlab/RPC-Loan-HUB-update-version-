@@ -57,6 +57,96 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [activeTab]);
 
+  // Star rain effect on scroll
+  useEffect(() => {
+    if (!isMainDashboard) return;
+
+    const starContainer = document.querySelector('.star-rain-container');
+    if (!starContainer) return;
+
+    let starId = 0;
+    let lastScrollY = window.scrollY;
+    let scrollTimeout: NodeJS.Timeout;
+
+    const createStar = () => {
+      const star = document.createElement('div');
+      star.className = 'star-rain-star';
+      const leftPosition = Math.random() * 100;
+      const drift = (Math.random() - 0.5) * 2; // -1 to 1
+      star.style.left = `${leftPosition}%`;
+      star.style.top = '-20px';
+      star.style.setProperty('--star-drift', drift.toString());
+      const duration = 8 + Math.random() * 12;
+      star.style.animation = `star-rain-fall ${duration}s linear forwards`;
+      star.style.width = `${4 + Math.random() * 4}px`;
+      star.style.height = star.style.width;
+      starContainer.appendChild(star);
+
+      // Remove star after animation
+      setTimeout(() => {
+        if (star.parentNode) {
+          star.parentNode.removeChild(star);
+        }
+      }, duration * 1000 + 1000);
+    };
+
+    const createGhostStar = () => {
+      const ghost = document.createElement('div');
+      ghost.className = 'star-rain-ghost';
+      ghost.style.left = `${Math.random() * 100}%`;
+      ghost.style.top = `${Math.random() * 100}%`;
+      ghost.style.animationDelay = `${Math.random() * 5}s`;
+      starContainer.appendChild(ghost);
+    };
+
+    // Create initial ghost stars
+    for (let i = 0; i < 20; i++) {
+      setTimeout(() => createGhostStar(), i * 150);
+    }
+
+    // Continuous subtle star rain
+    const continuousRain = setInterval(() => {
+      if (Math.random() > 0.5) {
+        createStar();
+      }
+    }, 3000);
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const scrollDelta = Math.abs(currentScrollY - lastScrollY);
+
+      // Create stars based on scroll speed
+      if (scrollDelta > 5) {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          // Create 1-3 stars randomly on scroll
+          const starCount = Math.floor(Math.random() * 3) + 1;
+          for (let i = 0; i < starCount; i++) {
+            setTimeout(() => createStar(), i * 100);
+          }
+        }, 50);
+      }
+
+      lastScrollY = currentScrollY;
+    };
+
+    // Also create stars periodically
+    const starInterval = setInterval(() => {
+      if (Math.random() > 0.7) {
+        createStar();
+      }
+    }, 2000);
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearInterval(starInterval);
+      clearInterval(continuousRain);
+      clearTimeout(scrollTimeout);
+    };
+  }, [isMainDashboard]);
+
   const loadData = async () => {
     try {
       const [statsRes, closingsRes] = await Promise.all([
@@ -349,7 +439,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full dashboard-bg dark">
         <AdminSidebar />
         <SidebarInset className="flex-1">
@@ -363,9 +453,14 @@ export default function AdminDashboard() {
             )}
           </header>
 
-          <main className="flex-1 p-6 bg-slate-950">
+          <main className="flex-1 p-6 bg-slate-950 relative overflow-hidden">
+            {/* Star Rain Container */}
+            <div className="star-rain-container fixed inset-0 pointer-events-none z-0 overflow-hidden">
+              {/* Stars will be dynamically generated via CSS */}
+            </div>
+            
             {isMainDashboard ? (
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 relative z-10">
                 <TabsList className="bg-slate-900 border-slate-800">
                   <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-800 data-[state=active]:text-yellow-400">
                     Dashboard

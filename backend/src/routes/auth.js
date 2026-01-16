@@ -45,6 +45,23 @@ async function createDocumentFoldersForLoan(loanId) {
   const loanResult = await db.query('SELECT transaction_type, loan_product FROM loan_requests WHERE id = $1', [loanId]);
   const loanType = loanResult.rows[0]?.transaction_type || loanResult.rows[0]?.loan_product || 'general';
 
+  // Check if table has 'required' or 'is_required' column (once, before loop)
+  let requiredColumnName = null;
+  try {
+    const requiredCheck = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'needs_list_items' 
+      AND column_name IN ('required', 'is_required')
+      LIMIT 1
+    `);
+    if (requiredCheck.rows.length > 0) {
+      requiredColumnName = requiredCheck.rows[0].column_name;
+    }
+  } catch (error) {
+    console.error('[createDocumentFoldersForLoan] Error checking required column:', error);
+  }
+
   // Create a placeholder needs_list_item for each folder to make it appear in the UI
   for (const folder of folders) {
     // Determine category based on folder name
@@ -79,9 +96,16 @@ async function createDocumentFoldersForLoan(loanId) {
       placeholders.push(`$${++paramIndex}`);
     }
     
-    columns.push('document_type', 'folder_name', 'description', 'status', 'required');
-    values.push(`Folder: ${folder.name}`, folder.name, folder.description, 'pending', false);
-    placeholders.push(`$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`);
+    columns.push('document_type', 'folder_name', 'description', 'status');
+    values.push(`Folder: ${folder.name}`, folder.name, folder.description, 'pending');
+    placeholders.push(`$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`, `$${++paramIndex}`);
+    
+    // Add required/is_required column if it exists
+    if (requiredColumnName) {
+      columns.push(requiredColumnName);
+      values.push(false);
+      placeholders.push(`$${++paramIndex}`);
+    }
 
     const query = `
       INSERT INTO needs_list_items (${columns.join(', ')})
@@ -332,6 +356,17 @@ router.post('/login', loginValidation, async (req, res, next) => {
       return res.status(401).json({ 
         error: 'Account is deactivated',
         message: 'Your account has been deactivated. Please contact support.'
+      });
+    }
+
+    // Check if user has a password hash (users created via Clerk might not have one)
+    if (!user.password_hash) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[Login] User ${user.email} has no password hash - may have been created via Clerk`);
+      }
+      return res.status(401).json({ 
+        error: 'Invalid credentials',
+        message: 'This account was created with a different authentication method. Please use the sign-in method you used to create the account.'
       });
     }
 

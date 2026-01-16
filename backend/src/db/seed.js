@@ -77,7 +77,7 @@ async function seed() {
 
         for (const item of needsItems) {
           await pool.query(`
-            INSERT INTO needs_list_items (loan_id, document_type, folder_name, description, status, required)
+            INSERT INTO needs_list_items (loan_id, document_type, folder_name, description, status, is_required)
             VALUES ($1, $2, $3, $4, 'pending', true)
           `, [loan1.rows[0].id, item.type, item.folder, item.desc]);
         }

@@ -206,32 +206,56 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
   const CurrentIcon = currentStep?.icon;
 
   return (
-    <div className="w-full animate-fade-up">
-      {/* Progress Bar Background */}
-      <div className="relative w-full h-3 bg-gradient-to-r from-muted via-muted/80 to-muted rounded-full mb-8 overflow-hidden shadow-inner">
-        {/* Animated Progress Fill with Shimmer */}
+    <div className="w-full animate-fade-up overflow-hidden">
+      {/* Progress Bar Background - Ghost Magic Blue Effect */}
+      <div className="relative w-full h-4 bg-gradient-to-r from-slate-200/50 via-slate-100/30 to-slate-200/50 rounded-full mb-8 overflow-visible shadow-inner border border-blue-200/20 backdrop-blur-sm">
+        {/* Downloading Star Effects on Progress Bar */}
+        <div className="absolute inset-0 pointer-events-none overflow-visible z-10">
+          <div className="absolute progress-bar-star progress-bar-star-1" style={{ top: '50%', left: '10%', transform: 'translateY(-50%)' }} />
+          <div className="absolute progress-bar-star progress-bar-star-2" style={{ top: '50%', left: '30%', transform: 'translateY(-50%)' }} />
+          <div className="absolute progress-bar-star progress-bar-star-3" style={{ top: '50%', left: '50%', transform: 'translateY(-50%)' }} />
+          <div className="absolute progress-bar-star progress-bar-star-4" style={{ top: '50%', left: '70%', transform: 'translateY(-50%)' }} />
+          <div className="absolute progress-bar-circle progress-bar-circle-1" style={{ top: '50%', left: '20%', transform: 'translateY(-50%)' }} />
+          <div className="absolute progress-bar-circle progress-bar-circle-2" style={{ top: '50%', left: '60%', transform: 'translateY(-50%)' }} />
+        </div>
+        
+        {/* Animated Progress Fill with Magic Blue Circle Effect */}
         <div
-          className="absolute top-0 left-0 h-full bg-gradient-to-r from-success via-gold-500 to-gold-400 transition-all duration-1000 ease-out rounded-full shadow-lg relative overflow-hidden"
+          className="absolute top-0 left-0 h-full transition-all duration-1000 ease-out rounded-full relative overflow-visible"
           style={{ width: `${progressPercentage}%` }}
         >
+          {/* Magic Blue Gradient Background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-600 rounded-full shadow-lg" />
+          
+          {/* Ghost/Glow Effect - Multiple Layers */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-400/60 via-cyan-300/70 to-blue-500/60 rounded-full blur-md -z-10 animate-pulse" />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-300/40 via-cyan-200/50 to-blue-400/40 rounded-full blur-xl -z-20 animate-pulse" style={{ animationDelay: '0.5s' }} />
+          
+          {/* Floating Magic Circles */}
+          <div className="absolute -top-2 -left-2 w-8 h-8 bg-blue-400/40 rounded-full blur-lg animate-float" style={{ animationDelay: '0s' }} />
+          <div className="absolute -top-1 right-1/4 w-6 h-6 bg-cyan-300/50 rounded-full blur-md animate-float" style={{ animationDelay: '1s' }} />
+          <div className="absolute -bottom-1 right-0 w-10 h-10 bg-blue-500/30 rounded-full blur-xl animate-float" style={{ animationDelay: '2s' }} />
+          
           {/* Shimmer effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" 
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer rounded-full" 
                style={{ 
                  backgroundSize: '200% 100%',
                  animation: 'shimmer 3s ease-in-out infinite'
                }} 
           />
-          {/* Glow effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-success/50 via-gold-500/50 to-gold-400/50 blur-sm" />
+          
+          {/* Inner Glow */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-400/30 via-cyan-300/40 to-blue-500/30 rounded-full blur-sm" />
         </div>
-        {/* Progress percentage indicator */}
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-2 text-xs font-bold text-muted-foreground">
+        
+        {/* Progress percentage indicator with magic effect */}
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-2 text-xs font-bold text-blue-600 drop-shadow-sm z-20">
           {Math.round(progressPercentage)}%
         </div>
       </div>
 
-      {/* Stages */}
-      <div className="relative w-full overflow-x-auto pb-4 scrollbar-hide">
+      {/* Stages - Horizontal Scrollable Container */}
+      <div className="relative w-full overflow-x-auto overflow-y-visible pb-4 scrollbar-tracker scrollbar-with-stars">
         <div className="flex items-start min-w-max px-2 gap-1">
           {steps.map((step, index) => {
             // If funded, all steps including the last one are completed
@@ -255,7 +279,7 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
                   {/* Stage Circle */}
                   <div
                     className={cn(
-                      "relative z-10 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-500 ease-out shadow-lg",
+                      "relative z-10 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-500 ease-out shadow-lg overflow-visible",
                       "border-2",
                       "group-hover:shadow-xl group-hover:scale-110",
                       isCompleted && "bg-gradient-to-br from-success to-success/80 border-success text-white scale-110 shadow-success/50 shadow-lg",
@@ -263,6 +287,17 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
                       !isCompleted && !isCurrent && "bg-gradient-to-br from-muted to-muted/80 border-muted-foreground/30 text-muted-foreground hover:border-muted-foreground/50"
                     )}
                   >
+                    {/* Downloading Star Effects for State Icons */}
+                    {(isCompleted || isCurrent) && (
+                      <>
+                        <div className="absolute state-icon-star state-icon-star-1 pointer-events-none" />
+                        <div className="absolute state-icon-star state-icon-star-2 pointer-events-none" />
+                        <div className="absolute state-icon-star state-icon-star-3 pointer-events-none" />
+                        <div className="absolute state-icon-circle state-icon-circle-1 pointer-events-none" />
+                        <div className="absolute state-icon-circle state-icon-circle-2 pointer-events-none" />
+                      </>
+                    )}
+                    
                     {/* Inner glow for completed */}
                     {isCompleted && (
                       <div className="absolute inset-0 rounded-full bg-white/20 animate-pulse" />
@@ -406,7 +441,7 @@ export function LoanTrackerFull({ currentStatus }: { currentStatus: LoanStatus }
   const isFunded = currentStatus === "funded";
 
   return (
-    <div className="relative">
+    <div className="relative overflow-visible">
       {steps.map((step, index) => {
         // If funded, all steps including the last one are completed
         const isCompleted = isFunded ? index <= currentIndex : index < currentIndex;
@@ -414,7 +449,7 @@ export function LoanTrackerFull({ currentStatus }: { currentStatus: LoanStatus }
         const Icon = step.icon;
 
         return (
-          <div key={step.id} className="flex gap-4 pb-6 last:pb-0">
+          <div key={step.id} className="flex gap-4 pb-6 last:pb-0 overflow-visible">
             {/* Line */}
             {index < steps.length - 1 && (
               <div className={cn(
@@ -423,20 +458,142 @@ export function LoanTrackerFull({ currentStatus }: { currentStatus: LoanStatus }
               )} style={{ top: `${index * 56}px` }} />
             )}
             
-            {/* Icon */}
-            <div
-              className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all relative z-10",
-                isCompleted && "bg-success text-white",
-                isCurrent && "bg-gold-500 text-navy-900 ring-4 ring-gold-500/20",
-                !isCompleted && !isCurrent && "bg-muted text-muted-foreground"
+            {/* Icon with White Glowing Rail Circle Effect */}
+            <div className="relative flex-shrink-0 w-8 h-8 overflow-visible">
+              {/* Magic Glowing Star Downloading Effect */}
+              {(isCompleted || isCurrent) && (
+                <>
+                  {/* Glowing Circle Particles */}
+                  <div className="absolute star-circle star-circle-1 pointer-events-none" />
+                  <div className="absolute star-circle star-circle-2 pointer-events-none" />
+                  <div className="absolute star-circle star-circle-3 pointer-events-none" />
+                  
+                  {/* Star 1 */}
+                  <div
+                    className="absolute star-download star-1 pointer-events-none"
+                    style={{
+                      top: '50%',
+                      left: '50%',
+                      width: '12px',
+                      height: '12px',
+                    }}
+                  />
+                  {/* Star 2 */}
+                  <div
+                    className="absolute star-download star-2 pointer-events-none"
+                    style={{
+                      top: '50%',
+                      left: '50%',
+                      width: '10px',
+                      height: '10px',
+                    }}
+                  />
+                  {/* Star 3 */}
+                  <div
+                    className="absolute star-download star-3 pointer-events-none"
+                    style={{
+                      top: '50%',
+                      left: '50%',
+                      width: '14px',
+                      height: '14px',
+                    }}
+                  />
+                  {/* Star 4 */}
+                  <div
+                    className="absolute star-download star-4 pointer-events-none"
+                    style={{
+                      top: '50%',
+                      left: '50%',
+                      width: '9px',
+                      height: '9px',
+                    }}
+                  />
+                  {/* Star 5 */}
+                  <div
+                    className="absolute star-download star-5 pointer-events-none"
+                    style={{
+                      top: '50%',
+                      left: '50%',
+                      width: '11px',
+                      height: '11px',
+                    }}
+                  />
+                </>
               )}
-            >
-              {isCompleted ? (
-                <Check className="w-4 h-4" />
-              ) : (
-                <Icon className="w-4 h-4" />
+              
+              {/* Outer Glowing Rail Circle - Background Glow */}
+              <div
+                className={cn(
+                  "absolute rounded-full transition-all duration-500 pointer-events-none",
+                  isCompleted && "animate-pulse-rail-glow",
+                  isCurrent && "animate-pulse-rail-glow-intense"
+                )}
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  boxShadow: isCompleted 
+                    ? '0 0 20px rgba(255, 255, 255, 0.6), 0 0 40px rgba(255, 255, 255, 0.4), 0 0 60px rgba(255, 255, 255, 0.2)'
+                    : isCurrent
+                    ? '0 0 25px rgba(255, 255, 255, 0.8), 0 0 50px rgba(255, 255, 255, 0.6), 0 0 80px rgba(255, 255, 255, 0.4), 0 0 100px rgba(255, 255, 255, 0.2)'
+                    : '0 0 10px rgba(255, 255, 255, 0.3), 0 0 20px rgba(255, 255, 255, 0.2)',
+                  background: isCompleted || isCurrent
+                    ? 'radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.1) 50%, transparent 70%)'
+                    : 'radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 60%)',
+                  border: isCompleted || isCurrent
+                    ? '2px solid rgba(255, 255, 255, 0.5)'
+                    : '1px solid rgba(255, 255, 255, 0.2)',
+                }}
+              />
+              
+              {/* Middle Glowing Rail Circle */}
+              {(isCompleted || isCurrent) && (
+                <div
+                  className={cn(
+                    "absolute rounded-full transition-all duration-500 pointer-events-none",
+                    isCurrent && "animate-ping-rail"
+                  )}
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    background: 'radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 40%, transparent 70%)',
+                    boxShadow: '0 0 15px rgba(255, 255, 255, 0.5), inset 0 0 10px rgba(255, 255, 255, 0.3)',
+                    border: '1px solid rgba(255, 255, 255, 0.4)',
+                  }}
+                />
               )}
+              
+              {/* Icon Container */}
+              <div
+                className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center transition-all relative z-10",
+                  isCompleted && "bg-success text-white shadow-lg shadow-success/50",
+                  isCurrent && "bg-gold-500 text-navy-900 ring-4 ring-gold-500/20 shadow-lg shadow-gold-500/50",
+                  !isCompleted && !isCurrent && "bg-muted text-muted-foreground"
+                )}
+              >
+                {isCompleted ? (
+                  <Check className="w-4 h-4 relative z-10" />
+                ) : (
+                  <Icon className="w-4 h-4 relative z-10" />
+                )}
+                
+                {/* Inner White Glow on Icon */}
+                {(isCompleted || isCurrent) && (
+                  <div
+                    className="absolute inset-0 rounded-full pointer-events-none"
+                    style={{
+                      background: 'radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.2) 40%, transparent 70%)',
+                      filter: 'blur(3px)',
+                    }}
+                  />
+                )}
+              </div>
             </div>
             
             {/* Content */}

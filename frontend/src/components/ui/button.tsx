@@ -66,6 +66,23 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       onClick?.(e);
     };
 
+    // When asChild is true, Slot expects exactly one child - pass children directly
+    if (asChild) {
+      return (
+        <Comp 
+          className={cn(
+            buttonVariants({ variant, size, className }),
+            "button-ripple"
+          )} 
+          ref={ref} 
+          {...props}
+          onClick={handleClick}
+        >
+          {children}
+        </Comp>
+      );
+    }
+
     return (
       <Comp 
         className={cn(
@@ -77,7 +94,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         onClick={handleClick}
       >
         {/* Ripple Effects */}
-        {!asChild && ripples.map((ripple) => (
+        {ripples.map((ripple) => (
           <span
             key={ripple.id}
             className="absolute rounded-full bg-white/50 pointer-events-none"

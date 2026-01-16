@@ -480,14 +480,41 @@ export default function BorrowerDashboard() {
 
                 {/* Loan Tracker Sidebar */}
                 <div>
-                  <Card>
-                    <CardHeader>
+                  <Card 
+                    className="relative loan-progress-card-ghost loan-progress-card-blue" 
+                    style={{ 
+                      overflow: 'visible',
+                      backgroundColor: 'transparent'
+                    }}
+                  >
+                    {/* Background Star Effects */}
+                    <div className="absolute inset-0 pointer-events-none z-0" style={{ overflow: 'visible' }}>
+                      {/* Background Stars - Multiple layers for continuous effect */}
+                      <div className="absolute card-bg-star card-bg-star-1" style={{ top: '0%', left: '15%' }} />
+                      <div className="absolute card-bg-star card-bg-star-2" style={{ top: '0%', left: '80%' }} />
+                      <div className="absolute card-bg-star card-bg-star-3" style={{ top: '0%', left: '25%' }} />
+                      <div className="absolute card-bg-star card-bg-star-4" style={{ top: '0%', left: '70%' }} />
+                      <div className="absolute card-bg-star card-bg-star-5" style={{ top: '0%', left: '20%' }} />
+                      <div className="absolute card-bg-star card-bg-star-6" style={{ top: '0%', left: '85%' }} />
+                      <div className="absolute card-bg-star card-bg-star-7" style={{ top: '0%', left: '45%' }} />
+                      <div className="absolute card-bg-star card-bg-star-8" style={{ top: '0%', left: '55%' }} />
+                      <div className="absolute card-bg-star card-bg-star-9" style={{ top: '0%', left: '35%' }} />
+                      
+                      {/* Background Circles */}
+                      <div className="absolute card-bg-circle card-bg-circle-1" style={{ top: '0%', left: '60%' }} />
+                      <div className="absolute card-bg-circle card-bg-circle-2" style={{ top: '0%', left: '10%' }} />
+                      <div className="absolute card-bg-circle card-bg-circle-3" style={{ top: '0%', left: '75%' }} />
+                      <div className="absolute card-bg-circle card-bg-circle-4" style={{ top: '0%', left: '30%' }} />
+                      <div className="absolute card-bg-circle card-bg-circle-5" style={{ top: '0%', left: '50%' }} />
+                    </div>
+                    
+                    <CardHeader className="relative z-10">
                       <CardTitle className="text-base">Loan Progress</CardTitle>
                       <CardDescription>
                         {selectedLoan?.loan_number || 'Select a loan'}
                       </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="relative z-10">
                       {selectedLoan && (
                         <LoanTrackerFull currentStatus={selectedLoan.status as LoanStatus} />
                       )}

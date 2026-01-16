@@ -21,15 +21,15 @@ async function createAdmin() {
 
     const result = await pool.query(`
       INSERT INTO users (email, password_hash, full_name, phone, role, email_verified, is_active)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, NOW(), $6)
       ON CONFLICT (email) DO UPDATE SET
         password_hash = EXCLUDED.password_hash,
         role = EXCLUDED.role,
-        email_verified = EXCLUDED.email_verified,
+        email_verified = NOW(),
         is_active = EXCLUDED.is_active,
         updated_at = NOW()
       RETURNING id, email, full_name, role, email_verified, is_active
-    `, [email, passwordHash, 'Admin User', '555-000-0000', 'admin', true, true]);
+    `, [email, passwordHash, 'Admin User', '555-000-0000', 'admin', true]);
 
     if (result.rows.length > 0) {
       console.log('\n✅ Admin user created/updated successfully!');

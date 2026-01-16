@@ -108,16 +108,24 @@ export function LoanCard({
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="p-3 rounded-lg bg-gradient-to-br from-gold-50 to-gold-100/50 border border-gold-200/50">
-              <p className="text-xs text-muted-foreground mb-1 font-medium">Loan Amount</p>
-              <p className="font-bold text-lg flex items-center gap-1 text-navy-900">
+            <div className="magic-glow-card magic-glow-gold p-3 rounded-lg overflow-visible relative">
+              <div className="hover-star-1"></div>
+              <div className="hover-star-2"></div>
+              <div className="hover-star-3"></div>
+              <div className="hover-star-4"></div>
+              <p className="text-xs text-muted-foreground mb-1 font-medium relative z-10">Loan Amount</p>
+              <p className="font-bold text-lg flex items-center gap-1 text-navy-900 relative z-10">
                 <DollarSign className="w-4 h-4 text-gold-600" />
                 {formatCurrency(loanAmount)}
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-muted/50 border border-border">
-              <p className="text-xs text-muted-foreground mb-1 font-medium">Property Type</p>
-              <p className="font-semibold text-foreground">{propertyType}</p>
+            <div className="magic-glow-card magic-glow-blue p-3 rounded-lg overflow-visible relative">
+              <div className="hover-star-1"></div>
+              <div className="hover-star-2"></div>
+              <div className="hover-star-3"></div>
+              <div className="hover-star-4"></div>
+              <p className="text-xs text-muted-foreground mb-1 font-medium relative z-10">Property Type</p>
+              <p className="font-semibold text-foreground relative z-10">{propertyType}</p>
             </div>
           </div>
           
