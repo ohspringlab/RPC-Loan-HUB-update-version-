@@ -200,7 +200,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-center py-12">
-              <Briefcase className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+              <Briefcase className="w-16 h-16 mx-auto mb-4 text-slate-600 magic-icon" />
               <p className="text-slate-400 mb-4">Deals CRM functionality coming soon</p>
               <Button onClick={() => navigate('/ops')} variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
                 View Operations Dashboard
@@ -225,7 +225,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-center py-12">
-              <BarChart3 className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+              <BarChart3 className="w-16 h-16 mx-auto mb-4 text-slate-600 magic-icon" />
               <p className="text-slate-400 mb-4">Reports functionality coming soon</p>
               <Button onClick={() => navigate('/ops')} variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
                 View Operations Dashboard
@@ -251,7 +251,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-center py-12">
-              <FileText className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+              <FileText className="w-16 h-16 mx-auto mb-4 text-slate-600 magic-icon" />
               <p className="text-slate-400 mb-4">Lead management functionality coming soon</p>
               <Button onClick={() => navigate('/ops')} variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
                 View Operations Dashboard
@@ -290,7 +290,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-center py-12">
-              <Icon className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+              <Icon className="w-16 h-16 mx-auto mb-4 text-slate-600 magic-icon" />
               <p className="text-slate-400 mb-4">{label} management functionality coming soon</p>
               <Button onClick={() => navigate('/ops')} variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
                 View Operations Dashboard
@@ -318,7 +318,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-center py-12">
-              <DollarSign className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+              <DollarSign className="w-16 h-16 mx-auto mb-4 text-slate-600 magic-icon" />
               <p className="text-slate-400 mb-4">Pricing functionality coming soon</p>
               <Button onClick={() => navigate('/ops')} variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
                 View Operations Dashboard
@@ -351,7 +351,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-center py-12">
-              <Globe className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+              <Globe className="w-16 h-16 mx-auto mb-4 text-slate-600 magic-icon" />
               <p className="text-slate-400 mb-4">{label} functionality coming soon</p>
             </div>
           </CardContent>
@@ -387,7 +387,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-center py-12">
-              <Icon className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+              <Icon className="w-16 h-16 mx-auto mb-4 text-slate-600 magic-icon" />
               <p className="text-slate-400 mb-4">{label} management functionality coming soon</p>
             </div>
           </CardContent>
@@ -409,7 +409,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-center py-12">
-              <BookOpen className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+              <BookOpen className="w-16 h-16 mx-auto mb-4 text-slate-600 magic-icon" />
               <p className="text-slate-400 mb-4">User manual coming soon</p>
             </div>
           </CardContent>
@@ -481,7 +481,7 @@ export default function AdminDashboard() {
                         <p className="text-2xl font-bold text-white">{formatCurrency(pipelineValue)}</p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
-                        <DollarSign className="w-6 h-6 text-slate-400" />
+                        <DollarSign className="w-6 h-6 text-slate-400 magic-icon" />
                       </div>
                     </div>
                   </CardContent>
@@ -495,7 +495,7 @@ export default function AdminDashboard() {
                         <p className="text-2xl font-bold text-white">{openDeals}</p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
-                        <Briefcase className="w-6 h-6 text-slate-400" />
+                        <Briefcase className="w-6 h-6 text-slate-400 magic-icon" />
                       </div>
                     </div>
                   </CardContent>
@@ -509,7 +509,7 @@ export default function AdminDashboard() {
                         <p className="text-2xl font-bold text-white">{winRate.toFixed(1)}%</p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
-                        <TrendingUp className="w-6 h-6 text-slate-400" />
+                        <TrendingUp className="w-6 h-6 text-slate-400 magic-icon" />
                       </div>
                     </div>
                   </CardContent>
@@ -523,7 +523,7 @@ export default function AdminDashboard() {
                         <p className="text-2xl font-bold text-white">{formatCurrency(wonThisMonth)}</p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
-                        <CheckCircle2 className="w-6 h-6 text-slate-400" />
+                        <CheckCircle2 className="w-6 h-6 text-slate-400 magic-icon" />
                       </div>
                     </div>
                   </CardContent>

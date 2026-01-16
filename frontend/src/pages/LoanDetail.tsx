@@ -8,7 +8,8 @@ import { FullApplicationForm } from "@/components/loan/FullApplicationForm";
 import { loansApi, documentsApi, paymentsApi, opsApi, Loan, NeedsListItem, SoftQuote } from "@/lib/api";
 import { 
   ArrowLeft, Building2, DollarSign, FileText, Download, CreditCard, 
-  CheckCircle2, AlertCircle, Upload, Shield, FileCheck, Calendar, ClipboardCheck, RefreshCw
+  CheckCircle2, AlertCircle, Upload, Shield, FileCheck, Calendar, ClipboardCheck, RefreshCw,
+  Search, XCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -176,20 +177,36 @@ export default function LoanDetail() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Loan Tracker - Domino's Style */}
-            <Card className="border-2 border-gold-500/30 bg-gradient-to-br from-white via-gold-50/30 to-white shadow-elegant-lg hover:shadow-elegant-lg transition-all duration-300 overflow-hidden relative">
-              {/* Decorative gradient overlay */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-gold-500/5 to-transparent rounded-full blur-3xl -z-0" />
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-success/5 to-transparent rounded-full blur-3xl -z-0" />
+            <Card 
+              className="relative loan-progress-card-ghost loan-progress-card-blue" 
+              style={{ 
+                overflow: 'visible',
+                backgroundColor: 'transparent'
+              }}
+            >
+              {/* Background Star Effects */}
+              <div className="absolute inset-0 pointer-events-none z-0" style={{ overflow: 'visible' }}>
+                {/* Background Stars - Multiple layers for continuous effect */}
+                <div className="absolute card-bg-star card-bg-star-1" style={{ top: '0%', left: '15%' }} />
+                <div className="absolute card-bg-star card-bg-star-2" style={{ top: '0%', left: '80%' }} />
+                <div className="absolute card-bg-star card-bg-star-3" style={{ top: '0%', left: '25%' }} />
+                <div className="absolute card-bg-star card-bg-star-4" style={{ top: '0%', left: '70%' }} />
+                <div className="absolute card-bg-star card-bg-star-5" style={{ top: '0%', left: '20%' }} />
+                <div className="absolute card-bg-star card-bg-star-6" style={{ top: '0%', left: '85%' }} />
+                <div className="absolute card-bg-star card-bg-star-7" style={{ top: '0%', left: '45%' }} />
+                <div className="absolute card-bg-star card-bg-star-8" style={{ top: '0%', left: '55%' }} />
+                <div className="absolute card-bg-star card-bg-star-9" style={{ top: '0%', left: '35%' }} />
+                
+                {/* Background Circles */}
+                <div className="absolute card-bg-circle card-bg-circle-1" style={{ top: '0%', left: '60%' }} />
+                <div className="absolute card-bg-circle card-bg-circle-2" style={{ top: '0%', left: '10%' }} />
+                <div className="absolute card-bg-circle card-bg-circle-3" style={{ top: '0%', left: '75%' }} />
+                <div className="absolute card-bg-circle card-bg-circle-4" style={{ top: '0%', left: '30%' }} />
+                <div className="absolute card-bg-circle card-bg-circle-5" style={{ top: '0%', left: '50%' }} />
+              </div>
               
-              <CardHeader className="relative z-10 bg-gradient-to-r from-gold-50/50 to-transparent border-b border-gold-200/30">
-                <CardTitle className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-500/20 to-gold-400/10 flex items-center justify-center border border-gold-300/50 shadow-sm">
-                    <FileCheck className="w-5 h-5 text-gold-600" />
-                  </div>
-                  <span className="bg-gradient-to-r from-navy-900 to-navy-700 bg-clip-text text-transparent">
-                    Loan Progress Tracker
-                  </span>
-                </CardTitle>
+              <CardHeader className="relative z-10">
+                <CardTitle className="text-base">Loan Progress Tracker</CardTitle>
                 <CardDescription className="text-base mt-2">
                   Track your loan application through each stage with real-time updates
                 </CardDescription>
@@ -838,147 +855,178 @@ export default function LoanDetail() {
 
             {/* Debug card - Show loan status info in development mode */}
             {import.meta.env.DEV && (
-              <Card key={`debug-${loan.status}-${loan.id}`} className="magic-glow-card magic-glow-purple overflow-visible relative">
-                <div className="hover-star-1"></div>
-                <div className="hover-star-2"></div>
-                <div className="hover-star-3"></div>
-                <div className="hover-star-4"></div>
+              <Card 
+                key={`debug-${loan.status}-${loan.id}`} 
+                className="relative loan-progress-card-ghost loan-progress-card-blue" 
+                style={{ 
+                  overflow: 'visible',
+                  backgroundColor: 'transparent'
+                }}
+              >
+                {/* Background Star Effects */}
+                <div className="absolute inset-0 pointer-events-none z-0" style={{ overflow: 'visible' }}>
+                  {/* Background Stars - Multiple layers for continuous effect */}
+                  <div className="absolute card-bg-star card-bg-star-1" style={{ top: '0%', left: '15%' }} />
+                  <div className="absolute card-bg-star card-bg-star-2" style={{ top: '0%', left: '80%' }} />
+                  <div className="absolute card-bg-star card-bg-star-3" style={{ top: '0%', left: '25%' }} />
+                  <div className="absolute card-bg-star card-bg-star-4" style={{ top: '0%', left: '70%' }} />
+                  <div className="absolute card-bg-star card-bg-star-5" style={{ top: '0%', left: '20%' }} />
+                  <div className="absolute card-bg-star card-bg-star-6" style={{ top: '0%', left: '85%' }} />
+                  <div className="absolute card-bg-star card-bg-star-7" style={{ top: '0%', left: '45%' }} />
+                  <div className="absolute card-bg-star card-bg-star-8" style={{ top: '0%', left: '55%' }} />
+                  <div className="absolute card-bg-star card-bg-star-9" style={{ top: '0%', left: '35%' }} />
+                  
+                  {/* Background Circles */}
+                  <div className="absolute card-bg-circle card-bg-circle-1" style={{ top: '0%', left: '60%' }} />
+                  <div className="absolute card-bg-circle card-bg-circle-2" style={{ top: '0%', left: '10%' }} />
+                  <div className="absolute card-bg-circle card-bg-circle-3" style={{ top: '0%', left: '75%' }} />
+                  <div className="absolute card-bg-circle card-bg-circle-4" style={{ top: '0%', left: '30%' }} />
+                  <div className="absolute card-bg-circle card-bg-circle-5" style={{ top: '0%', left: '50%' }} />
+                </div>
                 
-                <CardHeader className="relative z-10 bg-gradient-to-r from-purple-100/50 to-indigo-100/30 border-b border-purple-200/50">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-purple-800 relative z-10">
-                    <span className="text-lg">🔍</span>
-                    <span className="bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">
+                <CardHeader className="relative z-10">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2 relative z-10">
+                    <Search className="w-5 h-5 magic-icon" />
+                    <span>
                       Debug Info (Development Only)
                     </span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-xs space-y-2 font-mono relative z-10 pt-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div className="magic-glow-card magic-glow-blue p-2 rounded-lg overflow-visible relative">
-                      <div className="hover-star-1"></div>
-                      <div className="hover-star-2"></div>
-                      <div className="hover-star-3"></div>
-                      <div className="hover-star-4"></div>
-                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Status:</p>
-                      <p className="text-blue-600 font-bold text-sm relative z-10">{loan.status}</p>
+                    <div className="bg-white/10 backdrop-blur-sm p-2 rounded-lg border border-white/20 relative z-10">
+                      <p className="text-white/90 font-semibold mb-1 text-xs">Status:</p>
+                      <p className="text-white font-bold text-sm">{loan.status}</p>
                     </div>
                     
-                    <div className="magic-glow-card magic-glow-green p-2 rounded-lg overflow-visible relative">
-                      <div className="hover-star-1"></div>
-                      <div className="hover-star-2"></div>
-                      <div className="hover-star-3"></div>
-                      <div className="hover-star-4"></div>
-                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Soft Quote Generated:</p>
-                      <p className={`${loan.soft_quote_generated ? 'text-green-600' : 'text-red-500'} font-bold relative z-10`}>
-                        {loan.soft_quote_generated ? '✅ Yes' : '❌ No'}
-                      </p>
+                    <div className="bg-white/10 backdrop-blur-sm p-2 rounded-lg border border-white/20 relative z-10">
+                      <p className="text-white/90 font-semibold mb-1 text-xs">Soft Quote Generated:</p>
+                      <div className="flex items-center gap-2">
+                        {loan.soft_quote_generated ? (
+                          <CheckCircle2 className="w-5 h-5 text-green-400 magic-icon-green-glow" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-400 magic-icon-red-glow" />
+                        )}
+                        <span className={`${loan.soft_quote_generated ? 'text-green-400' : 'text-red-400'} font-bold text-sm`}>
+                          {loan.soft_quote_generated ? 'Yes' : 'No'}
+                        </span>
+                      </div>
                     </div>
                     
-                    <div className="magic-glow-card magic-glow-green p-2 rounded-lg overflow-visible relative">
-                      <div className="hover-star-1"></div>
-                      <div className="hover-star-2"></div>
-                      <div className="hover-star-3"></div>
-                      <div className="hover-star-4"></div>
-                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Term Sheet Signed:</p>
-                      <p className={`${loan.term_sheet_signed ? 'text-green-600' : 'text-red-500'} font-bold relative z-10`}>
-                        {loan.term_sheet_signed ? '✅ Yes' : '❌ No'}
-                      </p>
+                    <div className="bg-white/10 backdrop-blur-sm p-2 rounded-lg border border-white/20 relative z-10">
+                      <p className="text-white/90 font-semibold mb-1 text-xs">Term Sheet Signed:</p>
+                      <div className="flex items-center gap-2">
+                        {loan.term_sheet_signed ? (
+                          <CheckCircle2 className="w-5 h-5 text-green-400 magic-icon-green-glow" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-400 magic-icon-red-glow" />
+                        )}
+                        <span className={`${loan.term_sheet_signed ? 'text-green-400' : 'text-red-400'} font-bold text-sm`}>
+                          {loan.term_sheet_signed ? 'Yes' : 'No'}
+                        </span>
+                      </div>
                     </div>
                     
-                    <div className="magic-glow-card magic-glow-green p-2 rounded-lg overflow-visible relative">
-                      <div className="hover-star-1"></div>
-                      <div className="hover-star-2"></div>
-                      <div className="hover-star-3"></div>
-                      <div className="hover-star-4"></div>
-                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Has Quote Data:</p>
-                      <p className={`${loan.soft_quote_data ? 'text-green-600' : 'text-red-500'} font-bold relative z-10`}>
-                        {loan.soft_quote_data ? '✅ Yes' : '❌ No'}
-                      </p>
+                    <div className="bg-white/10 backdrop-blur-sm p-2 rounded-lg border border-white/20 relative z-10">
+                      <p className="text-white/90 font-semibold mb-1 text-xs">Has Quote Data:</p>
+                      <div className="flex items-center gap-2">
+                        {loan.soft_quote_data ? (
+                          <CheckCircle2 className="w-5 h-5 text-green-400 magic-icon-green-glow" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-400 magic-icon-red-glow" />
+                        )}
+                        <span className={`${loan.soft_quote_data ? 'text-green-400' : 'text-red-400'} font-bold text-sm`}>
+                          {loan.soft_quote_data ? 'Yes' : 'No'}
+                        </span>
+                      </div>
                     </div>
                     
-                    <div className="magic-glow-card magic-glow-green p-2 rounded-lg overflow-visible relative">
-                      <div className="hover-star-1"></div>
-                      <div className="hover-star-2"></div>
-                      <div className="hover-star-3"></div>
-                      <div className="hover-star-4"></div>
-                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Term Sheet URL:</p>
-                      <p className={`${loan.term_sheet_url ? 'text-green-600' : 'text-red-500'} font-bold relative z-10`}>
-                        {loan.term_sheet_url ? '✅ Yes' : '❌ No'}
-                      </p>
+                    <div className="bg-white/10 backdrop-blur-sm p-2 rounded-lg border border-white/20 relative z-10">
+                      <p className="text-white/90 font-semibold mb-1 text-xs">Term Sheet URL:</p>
+                      <div className="flex items-center gap-2">
+                        {loan.term_sheet_url ? (
+                          <CheckCircle2 className="w-5 h-5 text-green-400 magic-icon-green-glow" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-400 magic-icon-red-glow" />
+                        )}
+                        <span className={`${loan.term_sheet_url ? 'text-green-400' : 'text-red-400'} font-bold text-sm`}>
+                          {loan.term_sheet_url ? 'Yes' : 'No'}
+                        </span>
+                      </div>
                     </div>
                     
-                    <div className="magic-glow-card magic-glow-blue p-2 rounded-lg overflow-visible relative">
-                      <div className="hover-star-1"></div>
-                      <div className="hover-star-2"></div>
-                      <div className="hover-star-3"></div>
-                      <div className="hover-star-4"></div>
-                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Current Step:</p>
-                      <p className="text-indigo-600 font-bold text-sm relative z-10">{loan.current_step || 'N/A'}</p>
+                    <div className="bg-white/10 backdrop-blur-sm p-2 rounded-lg border border-white/20 relative z-10">
+                      <p className="text-white/90 font-semibold mb-1 text-xs">Current Step:</p>
+                      <p className="text-white font-bold text-sm">{loan.current_step || 'N/A'}</p>
                     </div>
                     
                     {loan.status === "funded" && (
                       <>
-                        <div className="magic-glow-card magic-glow-blue p-2 rounded-lg overflow-visible relative">
-                          <div className="hover-star-1"></div>
-                          <div className="hover-star-2"></div>
-                          <div className="hover-star-3"></div>
-                          <div className="hover-star-4"></div>
-                          <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Funded Date:</p>
-                          <p className="text-indigo-600 font-bold relative z-10">
-                            {loan.funded_date ? new Date(loan.funded_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '❌ No'}
+                        <div className="bg-white/10 backdrop-blur-sm p-2 rounded-lg border border-white/20 relative z-10">
+                          <p className="text-white/90 font-semibold mb-1 text-xs">Funded Date:</p>
+                          <p className="text-white font-bold text-sm">
+                            {loan.funded_date ? new Date(loan.funded_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'No'}
                           </p>
                         </div>
-                        <div className="magic-glow-card magic-glow-gold p-2 rounded-lg overflow-visible relative">
-                          <div className="hover-star-1"></div>
-                          <div className="hover-star-2"></div>
-                          <div className="hover-star-3"></div>
-                          <div className="hover-star-4"></div>
-                          <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Funded Amount:</p>
-                          <p className="text-indigo-600 font-bold relative z-10">{loan.funded_amount ? formatCurrency(loan.funded_amount) : '❌ No'}</p>
+                        <div className="bg-white/10 backdrop-blur-sm p-2 rounded-lg border border-white/20 relative z-10">
+                          <p className="text-white/90 font-semibold mb-1 text-xs">Funded Amount:</p>
+                          <p className="text-white font-bold text-sm">{loan.funded_amount ? formatCurrency(loan.funded_amount) : 'No'}</p>
                         </div>
                       </>
                     )}
                     
-                    <div className="magic-glow-card magic-glow-purple p-2 rounded-lg overflow-visible relative">
-                      <div className="hover-star-1"></div>
-                      <div className="hover-star-2"></div>
-                      <div className="hover-star-3"></div>
-                      <div className="hover-star-4"></div>
-                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Is Ops View:</p>
-                      <p className={`${isOpsView ? 'text-green-600' : 'text-red-500'} font-bold relative z-10`}>
-                        {isOpsView ? '✅ Yes' : '❌ No'}
-                      </p>
+                    <div className="bg-white/10 backdrop-blur-sm p-2 rounded-lg border border-white/20 relative z-10">
+                      <p className="text-white/90 font-semibold mb-1 text-xs">Is Ops View:</p>
+                      <div className="flex items-center gap-2">
+                        {isOpsView ? (
+                          <CheckCircle2 className="w-5 h-5 text-green-400 magic-icon-green-glow" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-400 magic-icon-red-glow" />
+                        )}
+                        <span className={`${isOpsView ? 'text-green-400' : 'text-red-400'} font-bold text-sm`}>
+                          {isOpsView ? 'Yes' : 'No'}
+                        </span>
+                      </div>
                     </div>
                     
-                    <div className="magic-glow-card magic-glow-purple p-2 rounded-lg overflow-visible relative">
-                      <div className="hover-star-1"></div>
-                      <div className="hover-star-2"></div>
-                      <div className="hover-star-3"></div>
-                      <div className="hover-star-4"></div>
-                      <p className="text-purple-900/70 font-semibold mb-1 relative z-10">Should Show Sign Card:</p>
-                      <p className={`${
-                        (loan.status === "funded" || loan.status?.toLowerCase() === "funded")
-                          ? 'text-red-500' 
-                          : ((loan.status === "soft_quote_issued" || 
+                    <div className="bg-white/10 backdrop-blur-sm p-2 rounded-lg border border-white/20 relative z-10">
+                      <p className="text-white/90 font-semibold mb-1 text-xs">Should Show Sign Card:</p>
+                      <div className="flex items-center gap-2">
+                        {(loan.status === "funded" || loan.status?.toLowerCase() === "funded") ? (
+                          <XCircle className="w-5 h-5 text-red-400 magic-icon-red-glow" />
+                        ) : ((loan.status === "soft_quote_issued" || 
                               loan.status === "soft_quote" || 
                               (loan.soft_quote_generated && !loan.term_sheet_signed)) && 
                               !loan.term_sheet_signed && 
-                              !isOpsView) 
-                            ? 'text-green-600' 
-                            : 'text-red-500'
-                      } font-bold relative z-10`}>
-                        {
+                              !isOpsView) ? (
+                          <CheckCircle2 className="w-5 h-5 text-green-400 magic-icon-green-glow" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-400 magic-icon-red-glow" />
+                        )}
+                        <span className={`${
                           (loan.status === "funded" || loan.status?.toLowerCase() === "funded")
-                            ? '❌ NO (Loan Complete)' 
+                            ? 'text-red-400' 
                             : ((loan.status === "soft_quote_issued" || 
                                 loan.status === "soft_quote" || 
                                 (loan.soft_quote_generated && !loan.term_sheet_signed)) && 
                                 !loan.term_sheet_signed && 
                                 !isOpsView) 
-                              ? '✅ YES' 
-                              : '❌ NO'
-                        }
-                      </p>
+                              ? 'text-green-400' 
+                              : 'text-red-400'
+                        } font-bold text-sm`}>
+                          {
+                            (loan.status === "funded" || loan.status?.toLowerCase() === "funded")
+                              ? 'NO (Loan Complete)' 
+                              : ((loan.status === "soft_quote_issued" || 
+                                  loan.status === "soft_quote" || 
+                                  (loan.soft_quote_generated && !loan.term_sheet_signed)) && 
+                                  !loan.term_sheet_signed && 
+                                  !isOpsView) 
+                                ? 'YES' 
+                                : 'NO'
+                          }
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -2177,11 +2225,38 @@ export default function LoanDetail() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
+            <Card 
+              className="relative loan-progress-card-ghost loan-progress-card-blue" 
+              style={{ 
+                overflow: 'visible',
+                backgroundColor: 'transparent'
+              }}
+            >
+              {/* Background Star Effects */}
+              <div className="absolute inset-0 pointer-events-none z-0" style={{ overflow: 'visible' }}>
+                {/* Background Stars - Multiple layers for continuous effect */}
+                <div className="absolute card-bg-star card-bg-star-1" style={{ top: '0%', left: '15%' }} />
+                <div className="absolute card-bg-star card-bg-star-2" style={{ top: '0%', left: '80%' }} />
+                <div className="absolute card-bg-star card-bg-star-3" style={{ top: '0%', left: '25%' }} />
+                <div className="absolute card-bg-star card-bg-star-4" style={{ top: '0%', left: '70%' }} />
+                <div className="absolute card-bg-star card-bg-star-5" style={{ top: '0%', left: '20%' }} />
+                <div className="absolute card-bg-star card-bg-star-6" style={{ top: '0%', left: '85%' }} />
+                <div className="absolute card-bg-star card-bg-star-7" style={{ top: '0%', left: '45%' }} />
+                <div className="absolute card-bg-star card-bg-star-8" style={{ top: '0%', left: '55%' }} />
+                <div className="absolute card-bg-star card-bg-star-9" style={{ top: '0%', left: '35%' }} />
+                
+                {/* Background Circles */}
+                <div className="absolute card-bg-circle card-bg-circle-1" style={{ top: '0%', left: '60%' }} />
+                <div className="absolute card-bg-circle card-bg-circle-2" style={{ top: '0%', left: '10%' }} />
+                <div className="absolute card-bg-circle card-bg-circle-3" style={{ top: '0%', left: '75%' }} />
+                <div className="absolute card-bg-circle card-bg-circle-4" style={{ top: '0%', left: '30%' }} />
+                <div className="absolute card-bg-circle card-bg-circle-5" style={{ top: '0%', left: '50%' }} />
+              </div>
+              
+              <CardHeader className="relative z-10">
                 <CardTitle className="text-base">Loan Progress</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="relative z-10">
                 <LoanTrackerFull currentStatus={loan.status as LoanStatus} />
               </CardContent>
             </Card>

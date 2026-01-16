@@ -120,13 +120,13 @@ export function LoanTracker({ currentStatus, compact = false }: LoanTrackerProps
                 "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all z-10",
                 isCompleted && "bg-success text-white",
                 isCurrent && "bg-gold-500 text-navy-900 ring-4 ring-gold-500/20",
-                !isCompleted && !isCurrent && "bg-muted text-muted-foreground"
+                !isCompleted && !isCurrent && "bg-white/90 text-slate-700 border-2 border-white/50 shadow-md"
               )}
             >
               {isCompleted ? (
                 <Check className="w-4 h-4" />
               ) : (
-                <Icon className="w-4 h-4" />
+                <Icon className="w-4 h-4" style={{ filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))' }} />
               )}
             </div>
             <div className={cn(
@@ -168,13 +168,13 @@ export function LoanTrackerHorizontal({ currentStatus }: { currentStatus: LoanSt
                   "w-10 h-10 rounded-full flex items-center justify-center transition-all",
                   isCompleted && "bg-success text-white",
                   isCurrent && "bg-gold-500 text-navy-900 ring-4 ring-gold-500/20 animate-pulse-gold",
-                  !isCompleted && !isCurrent && "bg-muted text-muted-foreground"
+                  !isCompleted && !isCurrent && "bg-white/90 text-slate-700 border-2 border-white/50 shadow-md"
                 )}
               >
                 {isCompleted ? (
                   <Check className="w-5 h-5" />
                 ) : (
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-5 h-5" style={{ filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))' }} />
                 )}
               </div>
               {index < displaySteps.length - 1 && (
@@ -284,7 +284,7 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
                       "group-hover:shadow-xl group-hover:scale-110",
                       isCompleted && "bg-gradient-to-br from-success to-success/80 border-success text-white scale-110 shadow-success/50 shadow-lg",
                       isCurrent && "bg-gradient-to-br from-gold-500 via-gold-400 to-gold-500 border-gold-600 text-navy-900 scale-125 ring-4 ring-gold-500/40 shadow-gold-glow animate-pulse-gold",
-                      !isCompleted && !isCurrent && "bg-gradient-to-br from-muted to-muted/80 border-muted-foreground/30 text-muted-foreground hover:border-muted-foreground/50"
+                      !isCompleted && !isCurrent && "bg-gradient-to-br from-white/95 to-white/85 border-white/70 text-slate-700 shadow-lg hover:border-white/90"
                     )}
                   >
                     {/* Downloading Star Effects for State Icons */}
@@ -312,7 +312,7 @@ export function LoanTrackerDominos({ currentStatus }: { currentStatus: LoanStatu
                       <Icon className={cn(
                         "w-6 h-6 relative z-10 transition-transform duration-300",
                         isCurrent && "animate-bounce-subtle"
-                      )} />
+                      )} style={{ filter: !isCompleted && !isCurrent ? 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4))' : undefined }} />
                     )}
                   </div>
 
@@ -574,13 +574,13 @@ export function LoanTrackerFull({ currentStatus }: { currentStatus: LoanStatus }
                   "w-8 h-8 rounded-full flex items-center justify-center transition-all relative z-10",
                   isCompleted && "bg-success text-white shadow-lg shadow-success/50",
                   isCurrent && "bg-gold-500 text-navy-900 ring-4 ring-gold-500/20 shadow-lg shadow-gold-500/50",
-                  !isCompleted && !isCurrent && "bg-muted text-muted-foreground"
+                  !isCompleted && !isCurrent && "bg-white/90 text-slate-700 border-2 border-white/50 shadow-md"
                 )}
               >
                 {isCompleted ? (
                   <Check className="w-4 h-4 relative z-10" />
                 ) : (
-                  <Icon className="w-4 h-4 relative z-10" />
+                  <Icon className="w-4 h-4 relative z-10" style={{ filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))' }} />
                 )}
                 
                 {/* Inner White Glow on Icon */}
